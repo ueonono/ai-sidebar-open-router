@@ -11,6 +11,19 @@ navigateur.
   cliquer, remplir des champs, naviguer — avec **confirmation** des actions
 - 🔑 **BYOK** (Bring Your Own Key) : vos clés API restent **locales** dans le navigateur
 
+## Captures
+
+Rendu Markdown + diagramme Mermaid, et aperçu d'un artifact HTML (bouton rendu
+en direct dans une iframe sandboxée) — Firefox 152, vrai CSS + pipeline de rendu :
+
+| Markdown + Mermaid | Artifact HTML (aperçu) |
+|---|---|
+| ![Markdown et diagramme Mermaid](docs/screenshots/sidebar-markdown-mermaid.png) | ![Aperçu d'artifact HTML](docs/screenshots/artifact-html-preview.png) |
+
+> Captures générées via la page `demo/index.html` (reproduit la sidebar avec une
+> réponse type), rendue dans Firefox sous Xvfb. Validé aussi par `web-ext lint`
+> (0 erreur ; les avertissements proviennent uniquement de la lib mermaid bundlée).
+
 ## Installation (développement)
 
 1. Ouvrir `about:debugging#/runtime/this-firefox`
@@ -78,7 +91,10 @@ La hauteur des iframes s'ajuste via `postMessage`.
 - [x] Artifacts (aperçu HTML/SVG, diagrammes Mermaid)
 - [ ] Historique de conversations persistant
 - [ ] Capture d'écran d'onglet pour modèles vision
-- [ ] Publication sur AMO (addons.mozilla.org)
+- [ ] Publication sur AMO (addons.mozilla.org) — prévoir une note aux relecteurs
+      pour `vendor/mermaid.min.js` (lib minifiée ; fournir source/version) ; le
+      `Function` constructor de mermaid ne s'exécute que dans l'iframe sandboxée,
+      hors CSP de l'extension
 
 ## Licence
 

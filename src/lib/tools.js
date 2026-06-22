@@ -1,40 +1,59 @@
-// Définition des outils du mode agent + exécuteur côté navigateur.
-// Les définitions sont neutres (JSON Schema) ; providers.js les adapte au
-// format Anthropic ou OpenAI.
+// Agent tool definitions + the browser-side executor.
+//
+// Definitions are provider-neutral (plain JSON Schema); providers.js adapts them
+// to the Anthropic or OpenAI wire format. The executor runs in the sidebar
+// context, which holds the privileged `browser.*` APIs.
+//
+// SAFETY: every tool is tagged `write:true/false`. Write tools (the ones that
+// change state — clicking, typing, navigating, opening/closing tabs) go through
+// an optional confirmation prompt. On top of that, a hard-coded payment guardrail
+// (see content.js) refuses checkout/payment actions when enabled, so the agent
+// can fill a cart but can never complete a purchase.
 
 export const TOOLS = [
   {
     name: "read_page",
     description:
-      "Lit le contenu textuel visible de l'onglet actif (titre, URL, texte). À utiliser pour répondre à des questions sur la page consultée.",
+      "Read the visible text of the ACTIVE tab (title, URL, text). Use this to answer questions about the page the user is looking at.",
     write: false,
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "read_selection",
     description:
-      "Récupère le texte actuellement sélectionné par l'utilisateur dans l'onglet actif.",
+      "Get the text currently selected by the user in the active tab.",
     write: false,
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "list_tabs",
     description:
-      "Liste les onglets ouverts de la fenêtre courante (id, titre, URL, actif).",
+      "List the open tabs of the current window (id, title, URL, active).",
     write: false,
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "read_tab",
+    description:
+      "Read the visible text of a SPECIFIC tab by its id (obtained from list_tabs), without switching to it. Use to compare or gather context across several tabs.",
+    write: false,
+    input_schema: {
+      type: "object",
+      properties: { tabId: { type: "integer" } },
+      required: ["tabId"],
+    },
+  },
+  {
     name: "find_elements",
     description:
-      "Liste les éléments interactifs de la page (liens, boutons, champs de saisie) avec une référence 'ref' à utiliser pour click_element / fill_input. Filtrer avec 'query' (texte recherché) pour réduire la liste.",
+      "List interactive elements on the page (links, buttons, inputs) each with a 'ref' to use in click_element / fill_input. Pass 'query' (text to look for) to narrow the list.",
     write: false,
     input_schema: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "Texte/label à rechercher pour filtrer les éléments (optionnel).",
+          description: "Text/label to filter elements by (optional).",
         },
       },
       required: [],
@@ -42,20 +61,20 @@ export const TOOLS = [
   },
   {
     name: "open_tab",
-    description: "Ouvre un nouvel onglet sur l'URL donnée.",
+    description: "Open a new tab at the given URL.",
     write: true,
     input_schema: {
       type: "object",
       properties: {
-        url: { type: "string", description: "URL complète (https://...)" },
-        active: { type: "boolean", description: "Mettre l'onglet au premier plan (défaut true)." },
+        url: { type: "string", description: "Full URL (https://...)" },
+        active: { type: "boolean", description: "Bring the tab to front (default true)." },
       },
       required: ["url"],
     },
   },
   {
     name: "switch_tab",
-    description: "Active (met au premier plan) l'onglet d'id donné.",
+    description: "Activate (bring to front) the tab with the given id.",
     write: true,
     input_schema: {
       type: "object",
@@ -65,7 +84,7 @@ export const TOOLS = [
   },
   {
     name: "close_tab",
-    description: "Ferme l'onglet d'id donné.",
+    description: "Close the tab with the given id.",
     write: true,
     input_schema: {
       type: "object",
@@ -75,7 +94,7 @@ export const TOOLS = [
   },
   {
     name: "navigate",
-    description: "Navigue l'onglet actif vers l'URL donnée.",
+    description: "Navigate the active tab to the given URL.",
     write: true,
     input_schema: {
       type: "object",
@@ -86,7 +105,7 @@ export const TOOLS = [
   {
     name: "click_element",
     description:
-      "Clique sur un élément identifié par sa 'ref' (obtenue via find_elements).",
+      "Click an element identified by its 'ref' (from find_elements). Payment/checkout buttons are refused by the safety guardrail.",
     write: true,
     input_schema: {
       type: "object",
@@ -97,7 +116,7 @@ export const TOOLS = [
   {
     name: "fill_input",
     description:
-      "Saisit du texte dans un champ identifié par sa 'ref'. submit=true valide le formulaire ensuite.",
+      "Type text into a field identified by its 'ref'. submit=true then submits the form. Card/payment fields are refused by the safety guardrail.",
     write: true,
     input_schema: {
       type: "object",
@@ -111,7 +130,7 @@ export const TOOLS = [
   },
   {
     name: "scroll_page",
-    description: "Fait défiler l'onglet actif : 'up', 'down', 'top' ou 'bottom'.",
+    description: "Scroll the active tab: 'up', 'down', 'top' or 'bottom'.",
     write: true,
     input_schema: {
       type: "object",
@@ -125,41 +144,46 @@ export const TOOLS = [
 
 async function getActiveTab() {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  if (!tab) throw new Error("Aucun onglet actif.");
+  if (!tab) throw new Error("No active tab.");
   return tab;
 }
 
-// Envoie un message au content script de l'onglet actif (avec injection de
-// secours si le script n'est pas encore présent).
-async function sendToActiveTab(message) {
-  const tab = await getActiveTab();
+// Send a message to a tab's content script, injecting it on the fly if it is not
+// present yet (freshly loaded or restricted page).
+async function sendToTab(tabId, message) {
   try {
-    return await browser.tabs.sendMessage(tab.id, message);
+    return await browser.tabs.sendMessage(tabId, message);
   } catch (e) {
-    // content script absent (page nouvellement chargée / restreinte) → tenter injection
     try {
       await browser.scripting.executeScript({
-        target: { tabId: tab.id },
+        target: { tabId },
         files: ["src/content/content.js"],
       });
-      return await browser.tabs.sendMessage(tab.id, message);
+      return await browser.tabs.sendMessage(tabId, message);
     } catch (e2) {
-      throw new Error(
-        "Impossible d'accéder à cette page (page protégée ou non chargée)."
-      );
+      throw new Error("Cannot access this page (protected or not loaded).");
     }
   }
 }
 
-// Exécute un appel d'outil. `confirmFn(name, input)` est appelée pour les
-// actions d'écriture quand la confirmation est activée ; doit renvoyer un booléen.
-export async function executeTool(name, input, { confirmActions, confirmFn } = {}) {
+async function sendToActiveTab(message) {
+  const tab = await getActiveTab();
+  return sendToTab(tab.id, message);
+}
+
+// Execute a tool call.
+// Options:
+//   confirmActions / confirmFn : confirmation gate for write tools.
+//   guard : { blockPayments } — forwarded to the page so the content script can
+//           refuse payment/checkout interactions in code (defence in depth).
+export async function executeTool(name, input, opts = {}) {
+  const { confirmActions, confirmFn, guard = {} } = opts;
   const def = TOOLS.find((t) => t.name === name);
-  if (!def) return { error: `Outil inconnu : ${name}` };
+  if (!def) return { error: `Unknown tool: ${name}` };
 
   if (def.write && confirmActions && confirmFn) {
     const ok = await confirmFn(name, input);
-    if (!ok) return { error: "Action refusée par l'utilisateur." };
+    if (!ok) return { error: "Action declined by the user." };
   }
 
   try {
@@ -168,16 +192,19 @@ export async function executeTool(name, input, { confirmActions, confirmFn } = {
         return await sendToActiveTab({ type: "read_page" });
       case "read_selection":
         return await sendToActiveTab({ type: "read_selection" });
+      case "read_tab":
+        return await sendToTab(input.tabId, { type: "read_page" });
       case "find_elements":
         return await sendToActiveTab({ type: "find_elements", query: input.query || "" });
       case "click_element":
-        return await sendToActiveTab({ type: "click_element", ref: input.ref });
+        return await sendToActiveTab({ type: "click_element", ref: input.ref, guard });
       case "fill_input":
         return await sendToActiveTab({
           type: "fill_input",
           ref: input.ref,
           value: input.value,
           submit: !!input.submit,
+          guard,
         });
       case "scroll_page":
         return await sendToActiveTab({ type: "scroll_page", direction: input.direction });
@@ -214,7 +241,7 @@ export async function executeTool(name, input, { confirmActions, confirmFn } = {
         return { ok: true };
       }
       default:
-        return { error: `Outil non implémenté : ${name}` };
+        return { error: `Tool not implemented: ${name}` };
     }
   } catch (e) {
     return { error: String(e && e.message ? e.message : e) };

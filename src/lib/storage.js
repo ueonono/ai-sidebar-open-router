@@ -1,32 +1,52 @@
-// Stockage local des réglages (BYOK). Rien ne quitte le navigateur sauf vers
-// l'API choisie par l'utilisateur. On utilise browser.storage.local : les clés
-// ne sont JAMAIS synchronisées ni envoyées ailleurs.
+// Local settings storage (BYOK — "bring your own key").
 //
-// Le projet est livré 100% vierge : toutes les clés sont vides par défaut, c'est
-// à l'utilisateur de renseigner les siennes (ou de pointer un modèle local).
+// PRIVACY MODEL: nothing ever leaves the browser except a request to the AI
+// endpoint the user explicitly chose. We use `browser.storage.local`, which is
+// scoped to this device and is NEVER synced to any account or server. There is
+// no analytics, no telemetry and no remote configuration: the extension talks
+// only to the provider URLs listed in the manifest's host permissions.
+//
+// The project ships 100% blank: every key is empty by default. Users supply
+// their own credentials (or point at a local model that needs none).
 
 const DEFAULTS = {
-  provider: "anthropic", // id dans models.js (PROVIDERS)
-  keys: {}, // { anthropic:"", openai:"", openrouter:"", ... }
-  models: {}, // modèle choisi par fournisseur { anthropic:"claude-opus-4-8", ... }
-  baseUrls: {}, // surcharges d'URL (ollama, lmstudio, custom)
+  // ----- Provider / model selection ----------------------------------------
+  provider: "anthropic", // active provider id (see PROVIDERS in models.js)
+  keys: {}, // per-provider API keys      { anthropic:"", openai:"", ... }
+  models: {}, // per-provider chosen model  { anthropic:"claude-opus-4-8", ... }
+  baseUrls: {}, // per-provider base URL overrides (ollama / lmstudio / custom)
 
-  // Génération d'images
+  // ----- Image generation ---------------------------------------------------
   imageProvider: "openai",
   imageModel: "gpt-image-1",
+  imageSize: "1024x1024",
 
-  // Comportement
-  thinking: false, // afficher le raisonnement (modèles compatibles)
-  webSearch: false, // recherche web (Anthropic)
-  agentMode: false, // le modèle peut agir dans le navigateur
-  confirmActions: true, // confirmer chaque action d'écriture
-  includePageContext: true, // injecter la page active dans le chat
-  autoReadPage: true, // relire la page à chaque navigation (y c. sous-domaine)
-  maxPageChars: 12000, // troncature du contexte de page
-  targetLang: "Français", // langue cible des traductions
+  // ----- UI / behaviour ------------------------------------------------------
+  mode: "chat", // active workspace tab: chat | translate | improve | image
+  thinking: false, // surface the model's reasoning (supported models only)
+  webSearch: false, // server-side web search (Anthropic)
+  agentMode: false, // allow the model to act inside the browser
+  confirmActions: true, // ask before every state-changing action
+  includePageContext: true, // feed the active page into the chat
+  autoReadPage: true, // re-read the page on every navigation (subdomains too)
+  includeSelectedTabs: false, // also feed the user-selected extra tabs
+  selectedTabs: [], // tab ids the user ticked for multi-tab context
+  maxPageChars: 12000, // truncation budget for a single page's text
+  targetLang: "Français", // preferred target language for translations
+  improveTone: "Neutre et clair", // default rewriting style for "improve"
+
+  // ----- Safety guardrails ---------------------------------------------------
+  // The agent can browse autonomously but must never transact. When enabled it
+  // refuses payment / checkout / purchase / order-confirmation actions and stops
+  // at the cart, as requested. This is enforced both in the system prompt AND in
+  // code (tools.js) so a jailbroken prompt cannot bypass it.
+  blockPayments: true,
+  // Webmail compose helper: inject an "AI reply" button on known webmail sites.
+  // The button only DRAFTS a reply for the user to review — it never auto-sends.
+  webmailAssist: true,
 };
 
-// Migration depuis l'ancien schéma (anthropicKey / openrouterKey / *Model).
+// Migrate from the older schema (anthropicKey / openrouterKey / *Model).
 function migrate(s) {
   s.keys = s.keys || {};
   s.models = s.models || {};
@@ -51,8 +71,8 @@ export async function setSettings(patch) {
   await browser.storage.local.set(patch);
 }
 
-// Met à jour une entrée dans un objet imbriqué (keys/models/baseUrls) sans
-// écraser les autres entrées.
+// Update a single entry of a nested object (keys / models / baseUrls) without
+// clobbering its siblings.
 export async function setNested(field, key, value) {
   const cur = (await browser.storage.local.get(field))[field] || {};
   cur[key] = value;

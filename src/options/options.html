@@ -27,7 +27,22 @@
         <label>Modèle d'image
           <input type="text" id="imageModel" placeholder="gpt-image-1" />
         </label>
+        <label>Taille par défaut
+          <select id="imageSize"></select>
+        </label>
         <p class="muted">Utilise l'endpoint compatible OpenAI <code>/images/generations</code>.</p>
+      </section>
+
+      <section>
+        <h2>Sécurité &amp; confidentialité</h2>
+        <p class="muted">
+          <b>Zéro rétention serveur</b> : cette extension n'a aucun serveur. Vos données
+          (clés, conversations, contenu des pages) restent dans ce navigateur et ne sont
+          envoyées qu'à l'API IA que vous choisissez. Aucune analytique, aucune télémétrie.
+        </p>
+        <label class="check"><input type="checkbox" id="confirmActions" /> Demander confirmation avant chaque action (clic, saisie…)</label>
+        <label class="check"><input type="checkbox" id="blockPayments" /> <b>Garde-fou anti-achat</b> : l'agent ne peut jamais payer/commander (s'arrête au panier)</label>
+        <label class="check"><input type="checkbox" id="webmailAssist" /> Bouton « Répondre avec l'IA » sur les webmails (réponse assistée, jamais d'envoi auto)</label>
       </section>
 
       <section>
@@ -35,7 +50,6 @@
         <label class="check"><input type="checkbox" id="thinking" /> Afficher le raisonnement du modèle (thinking)</label>
         <label class="check"><input type="checkbox" id="webSearch" /> Recherche web (Claude uniquement)</label>
         <label class="check"><input type="checkbox" id="agentMode" /> Activer le mode agent par défaut</label>
-        <label class="check"><input type="checkbox" id="confirmActions" /> Demander confirmation avant chaque action (clic, saisie…)</label>
         <label class="check"><input type="checkbox" id="includePageContext" /> L'IA voit la page consultée (injection auto en mode chat)</label>
         <label class="check"><input type="checkbox" id="autoReadPage" /> Relire la page à chaque navigation (y compris sous-domaine)</label>
         <label>Langue cible des traductions

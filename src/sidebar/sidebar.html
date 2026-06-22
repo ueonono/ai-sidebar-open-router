@@ -22,7 +22,7 @@
           <input type="checkbox" id="webSearch" />
           <span>🌐</span>
         </label>
-        <label class="toggle" title="Le modèle peut agir dans le navigateur">
+        <label class="toggle" title="Le modèle peut agir dans le navigateur (sans achat/paiement)">
           <input type="checkbox" id="agentMode" />
           <span>Agent</span>
         </label>
@@ -35,9 +35,27 @@
       </div>
     </header>
 
+    <!-- Workspace tabs, Sider-style -->
+    <nav class="modebar" id="modebar">
+      <button class="mode active" data-mode="chat">💬 Chat</button>
+      <button class="mode" data-mode="translate">🌐 Traduire</button>
+      <button class="mode" data-mode="improve">✨ Améliorer</button>
+      <button class="mode" data-mode="image">🎨 Image</button>
+    </nav>
+
     <div id="pageBar" class="pagebar hidden" title="Page vue par l'IA">
       <span class="eye">👁</span>
       <span id="pageTitle" class="page-title"></span>
+      <button id="tabsBtn" class="icon" title="Choisir les onglets à donner à l'IA">📑</button>
+    </div>
+
+    <!-- Multi-tab context picker -->
+    <div id="tabsPanel" class="tabspanel hidden">
+      <div class="tabspanel-head">
+        <label class="check"><input type="checkbox" id="useTabs" /> Utiliser les onglets cochés comme contexte</label>
+        <button id="tabsRefresh" class="icon" title="Rafraîchir">⟳</button>
+      </div>
+      <ul id="tabsList" class="tabslist"></ul>
     </div>
 
     <main id="messages" class="messages">
@@ -46,8 +64,8 @@
         <p class="muted">
           Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter, ou un modèle
           <b>local</b> (Ollama / LM Studio). Renseignez votre clé dans
-          <a href="#" id="emptyOptions">⚙ Réglages</a>, puis posez une question ou
-          utilisez les actions rapides ci-dessous.
+          <a href="#" id="emptyOptions">⚙ Réglages</a>, puis posez une question, choisissez
+          un mode (Traduire / Améliorer / Image) ou utilisez les actions rapides.
         </p>
       </div>
     </main>
@@ -60,12 +78,60 @@
       </div>
     </div>
 
+    <!-- Chat-mode quick actions -->
     <div class="quickbar" id="quickbar">
       <button class="quick" data-action="summarize" title="Résumer la page">📝 Résumer</button>
       <button class="quick" data-action="translate" title="Traduire la page ou la sélection">🌐 Traduire</button>
       <button class="quick" data-action="improve" title="Améliorer le texte sélectionné">✨ Améliorer</button>
       <button class="quick" data-action="research" title="Rechercher des infos">🔍 Rechercher</button>
       <button class="quick" data-action="image" title="Générer une image">🎨 Image</button>
+    </div>
+
+    <!-- Mode-specific control rows (shown one at a time) -->
+    <div class="modebar-controls hidden" id="translateControls">
+      <label>Vers
+        <select id="translateLang">
+          <option>Français</option>
+          <option>Anglais</option>
+          <option>Espagnol</option>
+          <option>Allemand</option>
+          <option>Italien</option>
+          <option>Portugais</option>
+          <option>Néerlandais</option>
+          <option>Arabe</option>
+          <option>Chinois</option>
+          <option>Japonais</option>
+          <option>Russe</option>
+        </select>
+      </label>
+      <span class="muted">Vide = traduire la page active</span>
+    </div>
+
+    <div class="modebar-controls hidden" id="improveControls">
+      <label>Style
+        <select id="improveTone">
+          <option>Neutre et clair</option>
+          <option>Professionnel</option>
+          <option>Formel</option>
+          <option>Amical</option>
+          <option>Concis</option>
+          <option>Académique</option>
+          <option>Persuasif</option>
+        </select>
+      </label>
+      <span class="muted">Vide = texte sélectionné dans la page</span>
+    </div>
+
+    <div class="modebar-controls hidden" id="imageControls">
+      <label>Taille
+        <select id="imageSize">
+          <option>1024x1024</option>
+          <option>1024x1792</option>
+          <option>1792x1024</option>
+          <option>512x512</option>
+        </select>
+      </label>
+      <span class="muted" id="imageProviderNote"></span>
     </div>
 
     <footer class="composer">

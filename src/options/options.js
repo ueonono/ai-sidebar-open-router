@@ -1,10 +1,10 @@
 import { getSettings, setSettings } from "../lib/storage.js";
-import { PROVIDERS, PROVIDER_ORDER } from "../lib/models.js";
+import { PROVIDERS, PROVIDER_ORDER, IMAGE_SIZES } from "../lib/models.js";
 
 const $ = (id) => document.getElementById(id);
 
-// Construit dynamiquement un bloc par fournisseur : clé API (si requise),
-// URL de base (locaux / personnalisés), et modèle par défaut.
+// Build one block per provider: API key (when required), base URL (local /
+// custom servers) and a default model.
 function buildProviderFields(settings) {
   const root = $("providers");
   root.innerHTML = "";
@@ -28,7 +28,7 @@ function buildProviderFields(settings) {
       if (meta.keysUrl) {
         const p = document.createElement("p");
         p.className = "muted";
-        p.innerHTML = `Obtenir une clé : <a href="${meta.keysUrl}" target="_blank">${meta.keysUrl.replace(/^https?:\/\//, "")}</a>`;
+        p.innerHTML = `Obtenir une clé : <a href="${meta.keysUrl}" target="_blank" rel="noreferrer">${meta.keysUrl.replace(/^https?:\/\//, "")}</a>`;
         sec.appendChild(p);
       }
     }
@@ -70,6 +70,16 @@ function buildImageProvider(settings) {
     sel.appendChild(o);
   }
   sel.value = settings.imageProvider || "openai";
+
+  const size = $("imageSize");
+  size.innerHTML = "";
+  for (const s of IMAGE_SIZES) {
+    const o = document.createElement("option");
+    o.value = s;
+    o.textContent = s;
+    size.appendChild(o);
+  }
+  size.value = settings.imageSize || "1024x1024";
 }
 
 let settings;
@@ -83,6 +93,8 @@ async function load() {
   $("webSearch").checked = settings.webSearch;
   $("agentMode").checked = settings.agentMode;
   $("confirmActions").checked = settings.confirmActions;
+  $("blockPayments").checked = settings.blockPayments;
+  $("webmailAssist").checked = settings.webmailAssist;
   $("includePageContext").checked = settings.includePageContext;
   $("autoReadPage").checked = settings.autoReadPage;
   $("targetLang").value = settings.targetLang || "Français";
@@ -101,18 +113,20 @@ async function save() {
     const m = $(`model_${id}`);
     if (m && m.value.trim()) models[id] = m.value.trim();
   }
-  // Conserve les modèles déjà choisis dans la sidebar pour les fournisseurs non listés ici.
+  // Replace (do not merge): clearing a field deletes the stored key/URL/model.
   const patch = {
-    // Remplacement (et non fusion) : vider un champ supprime bien la clé/URL.
     keys,
     baseUrls,
     models,
     imageProvider: $("imageProvider").value,
     imageModel: $("imageModel").value.trim() || "gpt-image-1",
+    imageSize: $("imageSize").value,
     thinking: $("thinking").checked,
     webSearch: $("webSearch").checked,
     agentMode: $("agentMode").checked,
     confirmActions: $("confirmActions").checked,
+    blockPayments: $("blockPayments").checked,
+    webmailAssist: $("webmailAssist").checked,
     includePageContext: $("includePageContext").checked,
     autoReadPage: $("autoReadPage").checked,
     targetLang: $("targetLang").value.trim() || "Français",

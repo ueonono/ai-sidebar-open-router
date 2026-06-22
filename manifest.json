@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AI Sidebar — IA multi-fournisseurs",
-  "version": "0.2.0",
-  "description": "Sidebar IA open-source type Sider : branchez votre propre IA (Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter, Ollama/LM Studio local). Lit la page, résume, traduit, améliore, génère des images, mode agent. 100% BYOK.",
+  "version": "1.0.0",
+  "description": "Sidebar IA open-source type Sider : branchez votre propre IA (Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter, Ollama/LM Studio local). Lit la page et les onglets, résume, traduit, améliore, génère des images, répond à vos mails, mode agent (sans achat). 100% BYOK, zéro rétention serveur.",
   "author": "Florian Martins",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "ai-sidebar@behivey.com",

@@ -9,20 +9,28 @@ de Firefox ne permet pas. Un équivalent libre n'existait pas.
   **Mistral**, **Groq**, **DeepSeek**, **OpenRouter**, et les **modèles locaux**
   **Ollama** / **LM Studio** (ou n'importe quel serveur compatible OpenAI via une
   URL personnalisée).
+- 🗂 **Modes dédiés** (onglets façon Sider) : **💬 Chat**, **🌐 Traduire**,
+  **✨ Améliorer**, **🎨 Image** — chacun avec ses propres options (langue cible,
+  style de réécriture, taille d'image).
 - 👁 **L'IA voit la page** : le contenu est lu automatiquement à l'ouverture d'un
   site **et à chaque navigation** (y compris changement de sous-domaine et
   navigations SPA), puis utilisé comme support pour répondre.
-- ⚡ **Actions rapides** (façon Sider) : **Résumer**, **Traduire**, **Améliorer**
-  un texte, **Rechercher**, **Générer une image** — aussi accessibles via le
-  **clic droit** sur une sélection.
+- 📑 **Lecture multi-onglets** : cochez plusieurs onglets ouverts pour les donner
+  comme contexte à l'IA (comparer, synthétiser, recouper).
+- ⚡ **Actions rapides** + **clic droit** : Résumer / Traduire la **page** ou la
+  **sélection**, Expliquer, Améliorer, **Rédiger une réponse**.
+- ✉️ **Réponse mail assistée** : sur les webmails (Gmail, Outlook, Proton, Yahoo),
+  un bouton **« Répondre avec l'IA »** rédige un brouillon — **jamais d'envoi auto**.
 - 💭 **Thinking** : le raisonnement du modèle (extended thinking de Claude,
   `reasoning` de DeepSeek / o-series) s'affiche dans un bloc repliable.
 - 🎨 **Génération d'images** (endpoint compatible OpenAI `/images/generations`).
 - 🧩 **Artifacts** : diagrammes **Mermaid**, aperçu **HTML/SVG** en iframe sandboxée.
-- 🤖 **Mode agent** : l'IA peut lire la page, lister/ouvrir/fermer des onglets,
-  cliquer, remplir des champs, naviguer — avec **confirmation** des actions.
-- 🔑 **100% BYOK** : aucune clé fournie. Vos clés restent **locales**
-  (`storage.local`), jamais synchronisées, envoyées uniquement à l'API choisie.
+- 🤖 **Mode agent** : l'IA peut lire la page/les onglets, naviguer, cliquer,
+  remplir des champs — avec **confirmation** des actions et un **garde-fou
+  anti-achat** : elle peut remplir un panier mais **ne peut jamais payer/commander**.
+- 🔒 **100% BYOK, zéro rétention serveur** : aucune clé fournie, **aucun serveur**,
+  aucune télémétrie. Vos clés et données restent **locales** (`storage.local`),
+  jamais synchronisées, envoyées uniquement à l'API que vous choisissez.
 
 ## Capture
 
@@ -97,14 +105,25 @@ src/
 
 ## Sécurité & confidentialité
 
-- Les clés API sont stockées via `browser.storage.local` (jamais synchronisées,
-  jamais envoyées ailleurs que vers l'API choisie). **Aucune clé n'est fournie**
-  par l'extension : le dépôt est livré vierge.
-- Le mode agent demande confirmation avant toute action modifiant l'état.
+- **Zéro rétention serveur** : l'extension n'a **aucun backend**. Aucune donnée
+  (clés, conversations, contenu des pages) ne transite par un serveur tiers — tout
+  reste dans le navigateur et n'est envoyé qu'à l'API IA que **vous** choisissez.
+  Pas d'analytique, pas de télémétrie.
+- Les clés API sont stockées via `browser.storage.local` (jamais synchronisées).
+  **Aucune clé n'est fournie** : le dépôt est livré vierge.
+- **Garde-fou anti-transaction** : en mode agent, les actions de
+  paiement/commande/saisie de carte sont **refusées dans le code** (content script),
+  pas seulement dans le prompt — un prompt détourné ne peut pas les contourner.
+  L'agent s'arrête au panier.
+- **Anti prompt-injection** : le contenu des pages, onglets et sélections est traité
+  comme une **donnée non fiable**. Le prompt système interdit d'obéir à des
+  instructions trouvées dans une page et de divulguer les clés/réglages.
+- Le mode agent demande **confirmation** avant toute action modifiant l'état.
+- **CSP stricte** sur les pages d'extension (`script-src 'self'`) ; les artifacts
+  (HTML/Mermaid) s'exécutent en **iframe sandboxée** (origine opaque), isolés de
+  l'extension, des pages et des clés.
 - `anthropic-dangerous-direct-browser-access` expose la clé Anthropic au contexte
   navigateur de l'utilisateur (BYOK assumé) — acceptable car chacun fournit la sienne.
-- Les artifacts (HTML/Mermaid) s'exécutent en **iframe sandboxée** (origine opaque),
-  isolés de l'extension, des pages et des clés.
 
 ## Rendu Markdown & artifacts
 
@@ -119,9 +138,12 @@ des **iframes sandboxées** :
 
 - [x] Multi-fournisseurs + modèles locaux (Ollama / LM Studio / custom)
 - [x] Lecture auto de la page à chaque navigation (sous-domaine, SPA)
-- [x] Actions rapides : résumer, traduire, améliorer, rechercher, image
-- [x] Thinking / raisonnement
-- [x] Artifacts (HTML/SVG, Mermaid)
+- [x] Lecture multi-onglets (sélection des onglets à donner en contexte)
+- [x] Modes dédiés : Chat / Traduire / Améliorer / Image
+- [x] Actions rapides + clic droit (page & sélection) + rédaction de réponse
+- [x] Réponse mail assistée sur les webmails (sans envoi auto)
+- [x] Mode agent avec garde-fou anti-achat (s'arrête au panier)
+- [x] Thinking / raisonnement, Artifacts (HTML/SVG, Mermaid)
 - [ ] Historique de conversations persistant
 - [ ] Capture d'écran d'onglet pour modèles vision
 - [ ] Publication sur AMO — note aux relecteurs pour `vendor/mermaid.min.js`

@@ -1,9 +1,9 @@
-// Rendu Markdown (marked + DOMPurify) et "artifacts" (aperçu HTML/SVG,
-// diagrammes Mermaid). Les artifacts s'exécutent dans des iframes sandboxées
-// (origine opaque) : le code généré par le modèle n'a accès ni à l'extension,
-// ni aux pages, ni aux clés — et la CSP de l'extension ne le bride pas.
+// Markdown rendering (marked + DOMPurify) and "artifacts" (HTML/SVG preview,
+// Mermaid diagrams). Artifacts run inside sandboxed iframes (opaque origin): the
+// model-generated code can reach neither the extension, the pages, nor the API
+// keys — and the extension's CSP does not constrain it there.
 //
-// marked et DOMPurify sont chargés en globals via <script> dans sidebar.html.
+// marked and DOMPurify are loaded as globals via <script> in sidebar.html.
 
 let afCounter = 0;
 let mermaidLibPromise = null;
@@ -24,7 +24,7 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
-// Ajuste la hauteur des iframes d'artifact qui rapportent leur taille.
+// Resize artifact iframes that report their own height.
 window.addEventListener("message", (e) => {
   const d = e.data;
   if (d && d.__artifact) {
@@ -37,7 +37,7 @@ export function configureMarkdown() {
   if (window.marked && window.marked.setOptions) {
     window.marked.setOptions({ gfm: true, breaks: true });
   }
-  // Liens : nouvel onglet + rel sûr.
+  // Links: open in a new tab with a safe rel.
   if (window.DOMPurify) {
     window.DOMPurify.addHook("afterSanitizeAttributes", (node) => {
       if (node.tagName === "A") {
@@ -73,7 +73,7 @@ function makeFrame(srcdoc, { allowScripts, initialHeight }) {
 async function renderMermaid(slot, code) {
   slot.textContent = "Rendu du diagramme…";
   const lib = await getMermaidLib();
-  // makeFrame incrémentera afCounter vers cet id ; le reporter utilise le même.
+  // makeFrame will bump afCounter to this id; the reporter uses the same one.
   const id = "af" + (afCounter + 1);
   const srcdoc =
     `<!DOCTYPE html><html><head><meta charset="utf-8">` +
@@ -99,13 +99,13 @@ function renderHtmlPreview(slot, code, lang) {
       `<style>body{margin:0;padding:10px;background:#fff}</style></head><body>` +
       code +
       `</body></html>`;
-    // SVG : pas de scripts → sandbox vide ; hauteur fixe + resize manuel (CSS).
+    // SVG: no scripts -> empty sandbox; fixed height + manual CSS resize.
     const f = makeFrame(srcdoc, { allowScripts: false, initialHeight: 240 });
     slot.textContent = "";
     slot.appendChild(f);
     return;
   }
-  // HTML : exécuté (sandbox allow-scripts) après clic explicite de l'utilisateur.
+  // HTML: executed (sandbox allow-scripts) only after an explicit user click.
   const srcdoc = code + REPORTER(id);
   const f = makeFrame(srcdoc, { allowScripts: true, initialHeight: 200 });
   slot.textContent = "";
@@ -120,7 +120,7 @@ function toolbarButton(label, onClick) {
   return b;
 }
 
-// Transforme les <pre><code> en blocs avec barre d'outils + artifacts.
+// Turn <pre><code> blocks into toolbar'd blocks + artifacts.
 export function enhanceArtifacts(container) {
   const codes = container.querySelectorAll("pre > code");
   for (const code of codes) {
@@ -161,7 +161,7 @@ export function enhanceArtifacts(container) {
     wrap.appendChild(pre);
     wrap.appendChild(slot);
 
-    // Mermaid : rendu automatique (c'est tout l'intérêt).
+    // Mermaid: rendered automatically (that's the whole point).
     if (lang === "mermaid") {
       pre.style.display = "none";
       renderMermaid(slot, code.textContent);

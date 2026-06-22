@@ -1,14 +1,14 @@
-// Catalogue des fournisseurs d'IA et de leurs modèles par défaut.
-// L'extension est 100% BYOK : aucune clé n'est fournie, l'utilisateur renseigne
-// la sienne (ou pointe vers un serveur local sans clé).
+// Catalogue of AI providers and their default models.
+// The extension is 100% BYOK: no key is bundled, the user supplies their own
+// (or points at a local server that needs none).
 //
-// `kind` :
-//   "anthropic"  -> API native Anthropic (Claude)
-//   "openai"     -> API compatible OpenAI (/chat/completions, /models, /images)
+// `kind`:
+//   "anthropic"  -> native Anthropic API (Claude)
+//   "openai"     -> OpenAI-compatible API (/chat/completions, /models, /images)
 //
-// La plupart des fournisseurs (OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter,
-// Ollama, LM Studio, serveurs locaux…) parlent le dialecte OpenAI : un seul client
-// générique les couvre tous, paramétré par `baseUrl` + `apiKey`.
+// Most providers (OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter, Ollama,
+// LM Studio, self-hosted servers…) speak the OpenAI dialect, so a single generic
+// client covers them all, parameterised only by `baseUrl` + `apiKey`.
 
 export const PROVIDERS = {
   anthropic: {
@@ -170,14 +170,16 @@ export const PROVIDER_ORDER = [
   "custom",
 ];
 
-// Renvoie la baseUrl effective (tient compte des surcharges utilisateur pour
-// les serveurs locaux / personnalisés).
+// Image sizes accepted by the OpenAI-compatible /images/generations endpoint.
+export const IMAGE_SIZES = ["1024x1024", "1024x1792", "1792x1024", "512x512"];
+
+// Effective base URL (honours the user's override for local / custom servers).
 export function baseUrlFor(providerId, settings) {
   const override = settings && settings.baseUrls && settings.baseUrls[providerId];
   return (override && override.trim()) || PROVIDERS[providerId].baseUrl;
 }
 
-// Modèle sélectionné pour ce fournisseur (sinon premier de la liste par défaut).
+// Selected model for this provider (falls back to the first default).
 export function modelFor(providerId, settings) {
   const chosen = settings && settings.models && settings.models[providerId];
   if (chosen) return chosen;

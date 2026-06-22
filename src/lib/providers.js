@@ -1,21 +1,21 @@
-// Clients API. Deux familles partageant une interface commune :
+// API clients. Two families sharing one interface:
 //   runTurn({ system, history, tools, onText, onThink, signal })
 //     -> { message, toolCalls:[{id,name,input}], stopReason, text }
-//   formatToolResults(results) -> message(s) natif(s) à pousser dans l'historique
+//   formatToolResults(results) -> native message(s) to push into the history
 //
-// `history` et `message` sont au format NATIF du provider (Anthropic vs OpenAI),
-// pour rester fidèle à chaque API. La boucle agent (agent.js) ne manipule que la
-// liste normalisée `toolCalls`.
+// `history` and `message` stay in each provider's NATIVE wire format (Anthropic
+// vs OpenAI) to remain faithful to each API. The agent loop (agent.js) only ever
+// touches the normalised `toolCalls` array.
 //
-// `onThink(delta)` reçoit le texte de raisonnement (extended thinking d'Anthropic,
-// reasoning_content de DeepSeek/o-series) pour l'afficher séparément.
+// `onThink(delta)` receives reasoning text (Anthropic extended thinking,
+// DeepSeek/o-series reasoning_content) so the UI can show it separately.
 
 import { PROVIDERS, baseUrlFor, modelFor, keyFor } from "./models.js";
 
 const MAX_TOKENS = 4096;
 const THINKING_BUDGET = 6000;
 
-// Lecteur SSE générique : renvoie les charges utiles des lignes "data:".
+// Generic SSE reader: yields the payloads of "data:" lines.
 async function* sseData(response) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -43,7 +43,7 @@ async function ensureOk(response) {
 }
 
 // ---------------------------------------------------------------------------
-// Anthropic (Claude) — API native, + extended thinking + web search serveur
+// Anthropic (Claude) — native API, + extended thinking + server-side web search
 // ---------------------------------------------------------------------------
 function anthropicProvider({ apiKey, model, baseUrl, thinking, webSearch }) {
   const url = baseUrl.replace(/\/$/, "") + "/messages";
@@ -137,8 +137,8 @@ function anthropicProvider({ apiKey, model, baseUrl, thinking, webSearch }) {
         }
       }
 
-      // On conserve TOUS les blocs (y compris thinking avec signature, requis
-      // par l'API au tour suivant) pour rester valide.
+      // Keep ALL blocks (including thinking with its signature, which the API
+      // requires on the next turn) so the conversation stays valid.
       const content = blocks.filter(Boolean).map((b) => {
         if (b.type === "tool_use")
           return { type: "tool_use", id: b.id, name: b.name, input: b.input || {} };
@@ -172,14 +172,15 @@ function anthropicProvider({ apiKey, model, baseUrl, thinking, webSearch }) {
 }
 
 // ---------------------------------------------------------------------------
-// Générique compatible OpenAI (OpenAI, OpenRouter, Gemini, Mistral, Groq,
-// DeepSeek, Ollama, LM Studio, serveur perso…)
+// Generic OpenAI-compatible (OpenAI, OpenRouter, Gemini, Mistral, Groq,
+// DeepSeek, Ollama, LM Studio, self-hosted…)
 // ---------------------------------------------------------------------------
 function openaiProvider({ apiKey, model, baseUrl }) {
   const url = baseUrl.replace(/\/$/, "") + "/chat/completions";
   const headers = { "content-type": "application/json" };
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
-  // Entêtes de courtoisie OpenRouter (ignorées ailleurs).
+  // OpenRouter attribution headers (ignored by other providers). They carry no
+  // user data — just the app name/repo — and are sent only to the chosen endpoint.
   headers["HTTP-Referer"] = "https://github.com/FlorianMartins/firefox-ai-sidebar";
   headers["X-Title"] = "AI Sidebar";
 
@@ -219,7 +220,7 @@ function openaiProvider({ apiKey, model, baseUrl }) {
         const choice = chunk.choices && chunk.choices[0];
         if (!choice) continue;
         const delta = choice.delta || {};
-        // Raisonnement (DeepSeek: reasoning_content ; OpenRouter: reasoning)
+        // Reasoning text (DeepSeek: reasoning_content ; OpenRouter: reasoning)
         const reason = delta.reasoning_content || delta.reasoning;
         if (reason) onThink && onThink(reason);
         if (delta.content) {
@@ -273,7 +274,7 @@ function openaiProvider({ apiKey, model, baseUrl }) {
   };
 }
 
-// Fabrique le provider pour la conversation courante.
+// Build the provider for the current conversation.
 export function makeProvider(settings, opts = {}) {
   const id = settings.provider;
   const meta = PROVIDERS[id] || PROVIDERS.anthropic;
@@ -293,7 +294,7 @@ export function makeProvider(settings, opts = {}) {
   return openaiProvider({ apiKey, model, baseUrl });
 }
 
-// -------- Listing dynamique des modèles (format OpenAI /models) -------------
+// -------- Dynamic model listing (OpenAI /models format) ---------------------
 export async function listModels(providerId, settings) {
   const meta = PROVIDERS[providerId];
   if (!meta) throw new Error("Fournisseur inconnu");
@@ -312,9 +313,10 @@ export async function listModels(providerId, settings) {
     .sort();
 }
 
-// -------- Génération d'images (compatible OpenAI /images/generations) -------
-// Renvoie une liste d'URL data: (ou http) à afficher.
-export async function generateImage(settings, { prompt, size = "1024x1024", signal }) {
+// -------- Image generation (OpenAI-compatible /images/generations) ----------
+// Returns a list of data: (or http) URLs to display.
+export async function generateImage(settings, { prompt, size, signal }) {
+  size = size || settings.imageSize || "1024x1024";
   const providerId = settings.imageProvider || "openai";
   const meta = PROVIDERS[providerId];
   if (!meta || !meta.supportsImages) {

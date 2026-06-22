@@ -5,13 +5,27 @@ Une extension Firefox **open-source** qui ajoute une **sidebar IA** à la maniè
 qui **interagit réellement avec la page et les onglets** — ce que la sidebar native
 de Firefox ne permet pas. Un équivalent libre n'existait pas.
 
+- 🎨 **Interface moderne** : thème sombre + dégradé bleu/violet, **boutons à
+  bascule**, et un **sélecteur de modèle unifié** au-dessus du chat (une seule liste
+  groupée par fournisseur connecté).
 - 🔌 **Tous les fournisseurs** : **Claude** (Anthropic), **OpenAI**, **Gemini**,
   **Mistral**, **Groq**, **DeepSeek**, **OpenRouter**, et les **modèles locaux**
   **Ollama** / **LM Studio** (ou n'importe quel serveur compatible OpenAI via une
   URL personnalisée).
+- 🔑 **Connexion par compte** : bouton **« Se connecter avec OpenRouter »** (OAuth
+  PKCE — login Google / GitHub / email côté OpenRouter) qui débloque tous les
+  modèles. Les autres fournisseurs utilisent une clé API (ils n'offrent pas d'OAuth).
+- ⚖️ **Comparaison de modèles** : envoyez le même message à **deux modèles** et
+  comparez leurs réponses côte à côte.
+- 🧩 **Artifacts interactifs (façon Claude)** : demandez une app, un outil ou un
+  **jeu** → l'IA renvoie un document HTML/JS (ou un composant **React/JSX**) qui
+  s'exécute dans un aperçu sandboxé **et avec lequel vous interagissez/jouez**
+  directement. (Mermaid/SVG pour les diagrammes.)
+- 🕘 **Historique local** : vos conversations sont enregistrées **uniquement dans
+  ce navigateur** (privacy) ; liste, rechargement, et « tout effacer ».
 - 🗂 **Modes dédiés** (onglets façon Sider) : **💬 Chat**, **🌐 Traduire**,
-  **✨ Améliorer**, **🎨 Image** — chacun avec ses propres options (langue cible,
-  style de réécriture, taille d'image).
+  **✨ Améliorer**, **🎨 Image**. Le mode Améliorer propose des **styles d'écriture**
+  (Marketing, Newsletter, Email pro, Post LinkedIn, Tweet, Blog, Académique…).
 - 👁 **L'IA voit la page** : le contenu est lu automatiquement à l'ouverture d'un
   site **et à chaque navigation** (y compris changement de sous-domaine et
   navigations SPA), puis utilisé comme support pour répondre.
@@ -24,7 +38,6 @@ de Firefox ne permet pas. Un équivalent libre n'existait pas.
 - 💭 **Thinking** : le raisonnement du modèle (extended thinking de Claude,
   `reasoning` de DeepSeek / o-series) s'affiche dans un bloc repliable.
 - 🎨 **Génération d'images** (endpoint compatible OpenAI `/images/generations`).
-- 🧩 **Artifacts** : diagrammes **Mermaid**, aperçu **HTML/SVG** en iframe sandboxée.
 - 🤖 **Mode agent** : l'IA peut lire la page/les onglets, naviguer, cliquer,
   remplir des champs — avec **confirmation** des actions et un **garde-fou
   anti-achat** : elle peut remplir un panier mais **ne peut jamais payer/commander**.
@@ -34,14 +47,15 @@ de Firefox ne permet pas. Un équivalent libre n'existait pas.
 
 ## Capture
 
-Sidebar V2 (sélecteur multi-fournisseurs, chip « page vue », bloc Réflexion,
-Markdown + Mermaid, artifact HTML, barre d'actions rapides) — Firefox 152 :
+Sidebar V1.1 — thème sombre + dégradé bleu/violet, sélecteur de modèle unifié,
+boutons à bascule, comparaison de modèles, et un **artifact interactif jouable**
+(un mini-jeu qui tourne dans l'aperçu sandboxé) — Firefox 152 :
 
-![Sidebar V2](docs/screenshots/sidebar-v2.png)
+![Sidebar V1.1](docs/screenshots/sidebar-v11.png)
 
 > Capture générée via la page `demo/index.html` (reproduit la sidebar avec une
 > réponse type), rendue dans Firefox sous Xvfb. Validé par `web-ext lint`
-> (0 erreur ; les avertissements proviennent uniquement de la lib mermaid bundlée).
+> (0 erreur ; les avertissements proviennent uniquement des libs vendorées).
 
 ## Installation (développement)
 
@@ -78,12 +92,14 @@ src/
   content/               Lecture page + actions DOM + notif. de navigation SPA
   options/               Réglages générés dynamiquement (clés BYOK par fournisseur)
   lib/
-    models.js            Catalogue des fournisseurs + modèles par défaut
+    models.js            Catalogue des fournisseurs + modèles + presets d'écriture
     providers.js         Client Anthropic natif + client générique OpenAI ; images
     agent.js             Boucle d'agent (tours modèle ↔ outils)
     tools.js             Outils navigateur (onglets, DOM) + exécuteur
+    auth.js              Connexion OAuth (PKCE) OpenRouter via browser.identity
+    history.js           Historique local des conversations (storage.local)
     storage.js           Réglages locaux (clés/modèles/URLs par fournisseur)
-    markdown.js          Rendu Markdown + artifacts (Mermaid, HTML/SVG)
+    markdown.js          Rendu Markdown + artifacts interactifs (HTML/JS, React, SVG, Mermaid)
 ```
 
 ### Détails techniques
@@ -120,19 +136,28 @@ src/
   instructions trouvées dans une page et de divulguer les clés/réglages.
 - Le mode agent demande **confirmation** avant toute action modifiant l'état.
 - **CSP stricte** sur les pages d'extension (`script-src 'self'`) ; les artifacts
-  (HTML/Mermaid) s'exécutent en **iframe sandboxée** (origine opaque), isolés de
-  l'extension, des pages et des clés.
+  (HTML/JS/React/SVG/Mermaid) s'exécutent en **iframe sandboxée** (origine opaque,
+  sans `allow-same-origin`), isolés de l'extension, des pages et des clés.
+- **Historique 100% local** : les conversations sont stockées dans
+  `storage.local` (jamais synchronisées) ; désactivable et effaçable dans les réglages.
+- **Note artifacts React** : un artifact `jsx`/`react` charge React + Babel depuis
+  un CDN public (`unpkg`) **à l'intérieur de l'iframe sandboxée uniquement**, et
+  seulement quand un tel artifact est affiché. Les artifacts **HTML/JS** (jeux, apps)
+  ne dépendent d'aucun CDN. La connexion OpenRouter passe par `browser.identity`.
 - `anthropic-dangerous-direct-browser-access` expose la clé Anthropic au contexte
   navigateur de l'utilisateur (BYOK assumé) — acceptable car chacun fournit la sienne.
 
 ## Rendu Markdown & artifacts
 
 Réponses rendues en **Markdown** (marked + DOMPurify, vendorés dans `vendor/`).
-Blocs de code avec barre d'outils (**Copier**), et deux types d'**artifacts** dans
-des **iframes sandboxées** :
+Blocs de code avec barre d'outils (**Copier**), et des **artifacts interactifs**
+(façon Claude) dans des **iframes sandboxées**, avec bascule **Aperçu / Code** et
+bouton **Ouvrir** (plein écran) :
 
-- ` ```mermaid ` → **diagramme** rendu automatiquement (mermaid v10 inliné)
-- ` ```html ` / ` ```svg ` → bouton **Aperçu** (exécuté en sandbox isolée)
+- ` ```html ` → **app / jeu / outil** autonome, exécuté et **jouable** dans l'aperçu
+- ` ```jsx ` (ou `react`) → **composant React** (définir `App`), transpilé en direct
+- ` ```svg ` → graphique vectoriel rendu
+- ` ```mermaid ` → diagramme rendu automatiquement
 
 ## Feuille de route
 
@@ -143,8 +168,13 @@ des **iframes sandboxées** :
 - [x] Actions rapides + clic droit (page & sélection) + rédaction de réponse
 - [x] Réponse mail assistée sur les webmails (sans envoi auto)
 - [x] Mode agent avec garde-fou anti-achat (s'arrête au panier)
-- [x] Thinking / raisonnement, Artifacts (HTML/SVG, Mermaid)
-- [ ] Historique de conversations persistant
+- [x] Thinking / raisonnement
+- [x] Interface moderne (sombre + dégradé), sélecteur unifié, boutons à bascule
+- [x] Connexion par compte (OAuth OpenRouter)
+- [x] Comparaison de 2 modèles côte à côte
+- [x] Artifacts interactifs façon Claude (HTML/JS jouable, React/JSX)
+- [x] Historique de conversations local (privacy)
+- [x] Styles d'écriture (marketing, newsletter, email, LinkedIn…)
 - [ ] Capture d'écran d'onglet pour modèles vision
 - [ ] Publication sur AMO — note aux relecteurs pour `vendor/mermaid.min.js`
       (lib minifiée ; son `Function` constructor ne s'exécute que dans l'iframe

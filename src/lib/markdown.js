@@ -59,15 +59,77 @@ const REPORTER = (id) =>
   )},h:document.documentElement.scrollHeight},'*')}catch(e){}}` +
   `window.addEventListener('load',function(){__r();setTimeout(__r,300);setTimeout(__r,1200)});<\/script>`;
 
-function makeFrame(srcdoc, { allowScripts, initialHeight }) {
+function makeFrame(srcdoc, { sandbox, initialHeight }) {
   const id = "af" + ++afCounter;
   const f = document.createElement("iframe");
   f.className = "artifact-frame";
   f.dataset.aid = id;
-  f.setAttribute("sandbox", allowScripts ? "allow-scripts" : "");
+  // Artifacts run in a sandboxed iframe (opaque origin): isolated from the
+  // extension, the visited pages and the user's API keys. We deliberately do NOT
+  // grant allow-same-origin. For interactive apps/games we allow scripts, modals,
+  // pointer lock and popups so they behave like real apps.
+  f.setAttribute("sandbox", sandbox || "");
   f.style.height = (initialHeight || 160) + "px";
   f.srcdoc = srcdoc;
   return f;
+}
+
+// Interactive languages = real Claude-style artifacts the user can USE/PLAY.
+const INTERACTIVE = ["html", "jsx", "tsx", "react", "babel"];
+const GAME_SANDBOX = "allow-scripts allow-modals allow-pointer-lock allow-popups allow-forms";
+
+// Wrap a bare HTML fragment into a full document; pass full documents through.
+function asHtmlDocument(code) {
+  if (/<!doctype/i.test(code) || /<html[\s>]/i.test(code)) return code;
+  return (
+    `<!doctype html><html><head><meta charset="utf-8">` +
+    `<style>body{margin:0;font-family:system-ui;background:#fff;color:#111}</style></head>` +
+    `<body>${code}</body></html>`
+  );
+}
+
+// React/JSX artifact runtime, à la Claude: React + ReactDOM + Babel transpile the
+// component in-browser, inside the sandboxed iframe. The libraries are fetched by
+// the isolated iframe only (not by the extension) and only when such an artifact
+// is shown. The model is asked to define a component named `App`.
+function reactShell(code, id) {
+  return (
+    `<!doctype html><html><head><meta charset="utf-8">` +
+    `<style>body{margin:0;font-family:system-ui;background:#fff;color:#111}#root{min-height:40px}` +
+    `.err{color:#b00;padding:10px;white-space:pre-wrap;font:12px ui-monospace}</style>` +
+    `<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>` +
+    `<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>` +
+    `<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>` +
+    `</head><body><div id="root"></div>` +
+    `<script type="text/babel" data-presets="react">\n${code}\n` +
+    `;(function(){try{var C=(typeof App!=='undefined')?App:(typeof Component!=='undefined'?Component:null);` +
+    `var r=document.getElementById('root');if(C&&!r.hasChildNodes()){ReactDOM.createRoot(r).render(React.createElement(C));}}` +
+    `catch(e){document.body.innerHTML='<div class=err>'+(e&&e.message?e.message:e)+'</div>';}})();<\/script>` +
+    REPORTER(id) +
+    `</body></html>`
+  );
+}
+
+// Build the full artifact document for a given language.
+function buildArtifactDoc(code, lang, id) {
+  if (lang === "svg") {
+    return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px;background:#fff}</style></head><body>${code}${REPORTER(id)}</body></html>`;
+  }
+  if (lang === "jsx" || lang === "tsx" || lang === "react" || lang === "babel") {
+    return reactShell(code, id);
+  }
+  // html (interactive app / game)
+  return asHtmlDocument(code) + REPORTER(id);
+}
+
+function renderPreview(slot, code, lang) {
+  const id = "af" + (afCounter + 1);
+  const srcdoc = buildArtifactDoc(code, lang, id);
+  const sandbox = lang === "svg" ? "" : GAME_SANDBOX;
+  const initialHeight = lang === "svg" ? 260 : 380;
+  const f = makeFrame(srcdoc, { sandbox, initialHeight });
+  slot.textContent = "";
+  slot.appendChild(f);
 }
 
 async function renderMermaid(slot, code) {
@@ -86,28 +148,7 @@ async function renderMermaid(slot, code) {
     `(e&&e.message?e.message:e)+'</div>';});<\/script>` +
     REPORTER(id) +
     `</body></html>`;
-  const f = makeFrame(srcdoc, { allowScripts: true, initialHeight: 200 });
-  slot.textContent = "";
-  slot.appendChild(f);
-}
-
-function renderHtmlPreview(slot, code, lang) {
-  const id = "af" + (afCounter + 1);
-  if (lang === "svg") {
-    const srcdoc =
-      `<!DOCTYPE html><html><head><meta charset="utf-8">` +
-      `<style>body{margin:0;padding:10px;background:#fff}</style></head><body>` +
-      code +
-      `</body></html>`;
-    // SVG: no scripts -> empty sandbox; fixed height + manual CSS resize.
-    const f = makeFrame(srcdoc, { allowScripts: false, initialHeight: 240 });
-    slot.textContent = "";
-    slot.appendChild(f);
-    return;
-  }
-  // HTML: executed (sandbox allow-scripts) only after an explicit user click.
-  const srcdoc = code + REPORTER(id);
-  const f = makeFrame(srcdoc, { allowScripts: true, initialHeight: 200 });
+  const f = makeFrame(srcdoc, { sandbox: "allow-scripts", initialHeight: 200 });
   slot.textContent = "";
   slot.appendChild(f);
 }
@@ -120,7 +161,26 @@ function toolbarButton(label, onClick) {
   return b;
 }
 
-// Turn <pre><code> blocks into toolbar'd blocks + artifacts.
+// Open an artifact full-size in a new tab (its own blob: origin, fully isolated).
+function openArtifact(code, lang) {
+  const doc = buildArtifactDoc(code, lang, "open");
+  const url = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function artifactLabel(lang) {
+  if (lang === "mermaid") return "✨ Diagramme";
+  if (lang === "svg") return "✨ SVG";
+  if (INTERACTIVE.includes(lang)) return "✨ Artifact interactif";
+  return lang || "code";
+}
+
+// Turn <pre><code> blocks into toolbar'd code blocks and Claude-style artifacts.
+// Interactive HTML/JSX render automatically inside a sandboxed iframe the user can
+// actually use and PLAY (games, apps, simulations), with an Aperçu/Code toggle and
+// an "Ouvrir" button for full screen. Mermaid renders diagrams; other languages
+// stay as a copyable code block.
 export function enhanceArtifacts(container) {
   const codes = container.querySelectorAll("pre > code");
   for (const code of codes) {
@@ -129,23 +189,33 @@ export function enhanceArtifacts(container) {
     pre.dataset.enhanced = "1";
 
     const lang = ([...code.classList].find((c) => c.startsWith("language-")) || "").slice(9);
+    const isPreviewable = INTERACTIVE.includes(lang) || lang === "svg";
+    const isArtifact = isPreviewable || lang === "mermaid";
 
     const wrap = document.createElement("div");
-    wrap.className = "code-wrap";
+    wrap.className = isArtifact ? "code-wrap artifact" : "code-wrap";
     const bar = document.createElement("div");
     bar.className = "code-bar";
     const tag = document.createElement("span");
     tag.className = "code-lang";
-    tag.textContent = lang || "code";
+    tag.textContent = artifactLabel(lang);
     bar.appendChild(tag);
 
     const slot = document.createElement("div");
     slot.className = "artifact-slot";
 
-    if (lang === "html" || lang === "svg") {
-      bar.appendChild(
-        toolbarButton("Aperçu", () => renderHtmlPreview(slot, code.textContent, lang))
-      );
+    if (isPreviewable) {
+      // Auto-render the live artifact; offer a toggle back to the source code.
+      renderPreview(slot, code.textContent, lang);
+      pre.style.display = "none";
+      const toggle = toolbarButton("</> Code", () => {
+        const showingCode = pre.style.display !== "none";
+        pre.style.display = showingCode ? "none" : "";
+        slot.style.display = showingCode ? "" : "none";
+        toggle.textContent = showingCode ? "</> Code" : "👁 Aperçu";
+      });
+      bar.appendChild(toggle);
+      bar.appendChild(toolbarButton("⤢ Ouvrir", () => openArtifact(code.textContent, lang)));
     }
 
     const copy = toolbarButton("Copier", () => {
@@ -161,7 +231,6 @@ export function enhanceArtifacts(container) {
     wrap.appendChild(pre);
     wrap.appendChild(slot);
 
-    // Mermaid: rendered automatically (that's the whole point).
     if (lang === "mermaid") {
       pre.style.display = "none";
       renderMermaid(slot, code.textContent);

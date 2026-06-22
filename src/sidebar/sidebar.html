@@ -7,35 +7,39 @@
     <title>AI Sidebar</title>
   </head>
   <body>
+    <!-- Top bar: brand + global actions -->
     <header class="topbar">
-      <div class="row">
-        <select id="provider" title="Fournisseur"></select>
-        <select id="model" title="Modèle"></select>
-        <button id="refreshModels" class="icon" title="Rafraîchir la liste des modèles">⟳</button>
+      <div class="brand">
+        <img src="../../icons/icon.svg" alt="" class="brand-logo" />
+        <span class="brand-name">AI Sidebar</span>
       </div>
       <div class="row">
-        <label class="toggle" title="Afficher le raisonnement du modèle">
-          <input type="checkbox" id="thinking" />
-          <span>💭</span>
-        </label>
-        <label class="toggle" title="Recherche web (Claude)">
-          <input type="checkbox" id="webSearch" />
-          <span>🌐</span>
-        </label>
-        <label class="toggle" title="Le modèle peut agir dans le navigateur (sans achat/paiement)">
-          <input type="checkbox" id="agentMode" />
-          <span>Agent</span>
-        </label>
-        <label class="toggle" title="L'IA voit la page consultée">
-          <input type="checkbox" id="pageCtx" />
-          <span>👁</span>
-        </label>
+        <button id="historyBtn" class="icon" title="Historique (local)">🕘</button>
         <button id="newChat" class="icon" title="Nouvelle conversation">＋</button>
         <button id="openOptions" class="icon" title="Réglages">⚙</button>
       </div>
     </header>
 
-    <!-- Workspace tabs, Sider-style -->
+    <!-- Unified model picker (above the chat zone) -->
+    <div class="modelbar">
+      <div class="select-wrap">
+        <select id="modelSelect" title="Modèle"></select>
+      </div>
+      <button id="refreshModels" class="icon" title="Rafraîchir la liste des modèles">⟳</button>
+      <label class="switch mini" title="Comparer avec un second modèle">
+        <input type="checkbox" id="compareMode" />
+        <span class="track"></span>
+        <span class="lbl">⚖ Comparer</span>
+      </label>
+    </div>
+    <div class="modelbar compare-row hidden" id="compareRow">
+      <span class="vs">vs</span>
+      <div class="select-wrap">
+        <select id="compareSelect" title="Second modèle"></select>
+      </div>
+    </div>
+
+    <!-- Workspace tabs -->
     <nav class="modebar" id="modebar">
       <button class="mode active" data-mode="chat">💬 Chat</button>
       <button class="mode" data-mode="translate">🌐 Traduire</button>
@@ -43,16 +47,24 @@
       <button class="mode" data-mode="image">🎨 Image</button>
     </nav>
 
+    <!-- History panel -->
+    <div id="historyPanel" class="panel hidden">
+      <div class="panel-head">
+        <span>🕘 Historique <span class="muted">(local, privé)</span></span>
+        <button id="clearHistory" class="link-btn" title="Tout effacer">Tout effacer</button>
+      </div>
+      <ul id="historyList" class="historylist"></ul>
+    </div>
+
+    <!-- Page chip + multi-tab picker -->
     <div id="pageBar" class="pagebar hidden" title="Page vue par l'IA">
       <span class="eye">👁</span>
       <span id="pageTitle" class="page-title"></span>
       <button id="tabsBtn" class="icon" title="Choisir les onglets à donner à l'IA">📑</button>
     </div>
-
-    <!-- Multi-tab context picker -->
-    <div id="tabsPanel" class="tabspanel hidden">
-      <div class="tabspanel-head">
-        <label class="check"><input type="checkbox" id="useTabs" /> Utiliser les onglets cochés comme contexte</label>
+    <div id="tabsPanel" class="panel hidden">
+      <div class="panel-head">
+        <label class="check"><input type="checkbox" id="useTabs" /> Utiliser les onglets cochés</label>
         <button id="tabsRefresh" class="icon" title="Rafraîchir">⟳</button>
       </div>
       <ul id="tabsList" class="tabslist"></ul>
@@ -60,13 +72,16 @@
 
     <main id="messages" class="messages">
       <div class="empty" id="empty">
-        <p><b>Sidebar IA</b> — branchez votre propre IA.</p>
+        <div class="empty-logo"><img src="../../icons/icon.svg" alt="" /></div>
+        <p class="empty-title">Sidebar IA — branchez votre IA</p>
         <p class="muted">
           Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, OpenRouter, ou un modèle
-          <b>local</b> (Ollama / LM Studio). Renseignez votre clé dans
-          <a href="#" id="emptyOptions">⚙ Réglages</a>, puis posez une question, choisissez
-          un mode (Traduire / Améliorer / Image) ou utilisez les actions rapides.
+          <b>local</b> (Ollama / LM Studio).
         </p>
+        <div class="empty-actions">
+          <button id="connectOpenRouter" class="btn-grad">Se connecter avec OpenRouter</button>
+          <button id="emptyOptions" class="btn-ghost">⚙ Ajouter une clé API</button>
+        </div>
       </div>
     </main>
 
@@ -78,66 +93,60 @@
       </div>
     </div>
 
-    <!-- Chat-mode quick actions -->
-    <div class="quickbar" id="quickbar">
-      <button class="quick" data-action="summarize" title="Résumer la page">📝 Résumer</button>
-      <button class="quick" data-action="translate" title="Traduire la page ou la sélection">🌐 Traduire</button>
-      <button class="quick" data-action="improve" title="Améliorer le texte sélectionné">✨ Améliorer</button>
-      <button class="quick" data-action="research" title="Rechercher des infos">🔍 Rechercher</button>
-      <button class="quick" data-action="image" title="Générer une image">🎨 Image</button>
-    </div>
+    <!-- Adaptive control row (changes with the active mode) -->
+    <div class="controls" id="controls">
+      <!-- chat: toggle switches -->
+      <div class="ctl-group" id="chatControls">
+        <label class="switch" title="Afficher le raisonnement du modèle">
+          <input type="checkbox" id="thinking" /><span class="track"></span><span class="lbl">💭 Réflexion</span>
+        </label>
+        <label class="switch" title="Recherche web (Claude)">
+          <input type="checkbox" id="webSearch" /><span class="track"></span><span class="lbl">🌐 Web</span>
+        </label>
+        <label class="switch" title="Le modèle peut agir dans le navigateur (sans achat)">
+          <input type="checkbox" id="agentMode" /><span class="track"></span><span class="lbl">🤖 Agent</span>
+        </label>
+        <label class="switch" title="L'IA voit la page consultée">
+          <input type="checkbox" id="pageCtx" /><span class="track"></span><span class="lbl">👁 Page</span>
+        </label>
+      </div>
 
-    <!-- Mode-specific control rows (shown one at a time) -->
-    <div class="modebar-controls hidden" id="translateControls">
-      <label>Vers
-        <select id="translateLang">
-          <option>Français</option>
-          <option>Anglais</option>
-          <option>Espagnol</option>
-          <option>Allemand</option>
-          <option>Italien</option>
-          <option>Portugais</option>
-          <option>Néerlandais</option>
-          <option>Arabe</option>
-          <option>Chinois</option>
-          <option>Japonais</option>
-          <option>Russe</option>
-        </select>
-      </label>
-      <span class="muted">Vide = traduire la page active</span>
-    </div>
+      <!-- translate -->
+      <div class="ctl-group hidden" id="translateControls">
+        <label>Traduire vers
+          <select id="translateLang">
+            <option>Français</option><option>Anglais</option><option>Espagnol</option>
+            <option>Allemand</option><option>Italien</option><option>Portugais</option>
+            <option>Néerlandais</option><option>Arabe</option><option>Chinois</option>
+            <option>Japonais</option><option>Russe</option>
+          </select>
+        </label>
+        <span class="muted">vide = la page</span>
+      </div>
 
-    <div class="modebar-controls hidden" id="improveControls">
-      <label>Style
-        <select id="improveTone">
-          <option>Neutre et clair</option>
-          <option>Professionnel</option>
-          <option>Formel</option>
-          <option>Amical</option>
-          <option>Concis</option>
-          <option>Académique</option>
-          <option>Persuasif</option>
-        </select>
-      </label>
-      <span class="muted">Vide = texte sélectionné dans la page</span>
-    </div>
+      <!-- improve -->
+      <div class="ctl-group hidden" id="improveControls">
+        <label>Style d'écriture
+          <select id="improvePreset"></select>
+        </label>
+      </div>
 
-    <div class="modebar-controls hidden" id="imageControls">
-      <label>Taille
-        <select id="imageSize">
-          <option>1024x1024</option>
-          <option>1024x1792</option>
-          <option>1792x1024</option>
-          <option>512x512</option>
-        </select>
-      </label>
-      <span class="muted" id="imageProviderNote"></span>
+      <!-- image -->
+      <div class="ctl-group hidden" id="imageControls">
+        <label>Taille
+          <select id="imageSize">
+            <option>1024x1024</option><option>1024x1792</option>
+            <option>1792x1024</option><option>512x512</option>
+          </select>
+        </label>
+        <span class="muted" id="imageProviderNote"></span>
+      </div>
     </div>
 
     <footer class="composer">
-      <textarea id="input" rows="2" placeholder="Écrivez un message…"></textarea>
-      <button id="send" title="Envoyer">➤</button>
-      <button id="stop" class="hidden" title="Stop">■</button>
+      <textarea id="input" rows="1" placeholder="Écrivez un message…"></textarea>
+      <button id="send" class="btn-grad send" title="Envoyer">➤</button>
+      <button id="stop" class="hidden send" title="Stop">■</button>
     </footer>
 
     <script src="../../vendor/marked.min.js"></script>

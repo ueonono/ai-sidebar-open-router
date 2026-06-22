@@ -33,7 +33,12 @@ const DEFAULTS = {
   selectedTabs: [], // tab ids the user ticked for multi-tab context
   maxPageChars: 12000, // truncation budget for a single page's text
   targetLang: "Français", // preferred target language for translations
-  improveTone: "Neutre et clair", // default rewriting style for "improve"
+  improvePreset: "improve", // default writing preset for the "improve" mode
+
+  // ----- Compare & history ---------------------------------------------------
+  compareMode: false, // run the prompt on a second model side-by-side
+  compareModel: "", // "providerId|modelId" of the second model
+  saveHistory: true, // persist conversations locally (privacy: local only)
 
   // ----- Safety guardrails ---------------------------------------------------
   // The agent can browse autonomously but must never transact. When enabled it

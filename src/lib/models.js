@@ -190,3 +190,36 @@ export function modelFor(providerId, settings) {
 export function keyFor(providerId, settings) {
   return (settings && settings.keys && settings.keys[providerId]) || "";
 }
+
+// A provider is "connected" (usable) if it has a key, is a local server, or is a
+// custom endpoint with a base URL. Used to build the single unified model picker.
+export function isConnected(providerId, settings) {
+  const meta = PROVIDERS[providerId];
+  if (!meta) return false;
+  if (meta.local) return true; // local servers are always offered (may be off)
+  if (meta.custom) return !!(settings && settings.baseUrls && settings.baseUrls[providerId]);
+  return !!keyFor(providerId, settings);
+}
+
+export function connectedProviders(settings) {
+  return PROVIDER_ORDER.filter((id) => isConnected(id, settings));
+}
+
+// Writing presets for the "Improve" workspace, Sider-style. Each maps to an
+// instruction injected into the prompt. The label is shown in the UI (FR).
+export const WRITING_PRESETS = [
+  ["improve", "Améliorer (clarté & grammaire)", "Améliore ce texte : clarté, style, grammaire et fluidité, en gardant la langue et l'intention d'origine."],
+  ["shorten", "Raccourcir", "Raccourcis ce texte en gardant l'essentiel et le sens."],
+  ["expand", "Développer / détailler", "Développe et enrichis ce texte avec plus de détails et d'exemples pertinents."],
+  ["simplify", "Simplifier", "Reformule ce texte de façon simple et accessible (niveau grand public)."],
+  ["formal", "Plus formel", "Réécris ce texte dans un registre formel et professionnel."],
+  ["friendly", "Plus amical", "Réécris ce texte sur un ton chaleureux, amical et accessible."],
+  ["marketing", "Marketing / copywriting", "Réécris ce texte comme un copywriter : accrocheur, orienté bénéfices, avec un appel à l'action clair."],
+  ["newsletter", "Newsletter", "Transforme ce texte en section de newsletter engageante : titre accrocheur, ton conversationnel, et une conclusion incitative."],
+  ["email", "Email professionnel", "Rédige un email professionnel clair et poli à partir de ce contenu (objet + corps + formule de politesse)."],
+  ["linkedin", "Post LinkedIn", "Transforme ce texte en post LinkedIn percutant : accroche forte, paragraphes courts, et quelques hashtags pertinents."],
+  ["tweet", "Post X / Tweet", "Condense ce texte en un post X percutant (≤ 280 caractères), avec éventuellement 1–2 hashtags."],
+  ["blog", "Article de blog", "Développe ce texte en article de blog structuré (titre, intertitres, intro, conclusion) au ton informatif."],
+  ["academic", "Académique", "Réécris ce texte dans un style académique, précis et neutre, avec un vocabulaire soutenu."],
+  ["storytelling", "Storytelling", "Réécris ce texte sous forme de narration immersive (storytelling) qui capte l'attention."],
+];

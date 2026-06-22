@@ -3,32 +3,33 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Réutilise le VRAI CSS de la sidebar -->
+    <!-- Reuses the REAL sidebar CSS -->
     <link rel="stylesheet" href="../src/sidebar/sidebar.css" />
     <title>AI Sidebar — démo de rendu</title>
-    <style>
-      html, body { height: 100%; }
-    </style>
+    <style>html, body { height: 100%; }</style>
   </head>
   <body>
     <header class="topbar">
-      <div class="row">
-        <select>
-          <option>Claude (Anthropic)</option>
-          <option>OpenAI</option>
-          <option>Ollama (local)</option>
-        </select>
-        <select><option>Claude Opus 4.8</option></select>
-        <button class="icon">⟳</button>
+      <div class="brand">
+        <img src="../icons/icon.svg" alt="" class="brand-logo" />
+        <span class="brand-name">AI Sidebar</span>
       </div>
       <div class="row">
-        <label class="toggle"><input type="checkbox" checked /> <span>💭</span></label>
-        <label class="toggle"><input type="checkbox" /> <span>🌐</span></label>
-        <label class="toggle"><input type="checkbox" /> <span>Agent</span></label>
-        <label class="toggle"><input type="checkbox" checked /> <span>👁</span></label>
-        <button class="icon">＋</button><button class="icon">⚙</button>
+        <button class="icon">🕘</button><button class="icon">＋</button><button class="icon">⚙</button>
       </div>
     </header>
+
+    <div class="modelbar">
+      <div class="select-wrap">
+        <select><optgroup label="Claude (Anthropic)"><option>Claude Opus 4.8</option></optgroup></select>
+      </div>
+      <button class="icon">⟳</button>
+      <label class="switch mini"><input type="checkbox" checked /><span class="track"></span><span class="lbl">⚖ Comparer</span></label>
+    </div>
+    <div class="modelbar compare-row">
+      <span class="vs">vs</span>
+      <div class="select-wrap"><select><optgroup label="OpenAI"><option>GPT-4o</option></optgroup></select></div>
+    </div>
 
     <nav class="modebar">
       <button class="mode active">💬 Chat</button>
@@ -45,31 +46,26 @@
 
     <main id="messages" class="messages"></main>
 
-    <div class="quickbar">
-      <button class="quick">📝 Résumer</button>
-      <button class="quick">🌐 Traduire</button>
-      <button class="quick">✨ Améliorer</button>
-      <button class="quick">🔍 Rechercher</button>
-      <button class="quick">🎨 Image</button>
+    <div class="controls">
+      <div class="ctl-group">
+        <label class="switch"><input type="checkbox" checked /><span class="track"></span><span class="lbl">💭 Réflexion</span></label>
+        <label class="switch"><input type="checkbox" /><span class="track"></span><span class="lbl">🌐 Web</span></label>
+        <label class="switch"><input type="checkbox" /><span class="track"></span><span class="lbl">🤖 Agent</span></label>
+        <label class="switch"><input type="checkbox" checked /><span class="track"></span><span class="lbl">👁 Page</span></label>
+      </div>
     </div>
 
     <footer class="composer">
-      <textarea rows="2" placeholder="Écrivez un message…">Explique-moi le flux OAuth 2.0 avec un schéma</textarea>
-      <button id="send">➤</button>
+      <textarea rows="1" placeholder="Écrivez un message…">Explique le flux OAuth 2.0 avec un schéma</textarea>
+      <button class="btn-grad send">➤</button>
     </footer>
 
-    <!-- VRAIES libs vendorées -->
+    <!-- Real vendored libs -->
     <script src="../vendor/marked.min.js"></script>
     <script src="../vendor/purify.min.js"></script>
     <script type="module">
-      window.browser = {
-        runtime: { getURL: (p) => new URL("../" + p, location.href).href },
-      };
-      import {
-        configureMarkdown,
-        renderMarkdown,
-        enhanceArtifacts,
-      } from "../src/lib/markdown.js";
+      window.browser = { runtime: { getURL: (p) => new URL("../" + p, location.href).href } };
+      import { configureMarkdown, renderMarkdown, enhanceArtifacts } from "../src/lib/markdown.js";
 
       const messages = document.getElementById("messages");
       function addMsg(role, html) {
@@ -88,47 +84,39 @@
         messages.appendChild(d);
       }
 
+      const game = [
+        '<!doctype html><html><head><meta charset="utf-8"><style>',
+        "  body{margin:0;font-family:system-ui;background:#0f1117;color:#e7e8ef;text-align:center}",
+        "  #b{font:600 14px system-ui;color:#9aa0b4;padding:8px}",
+        "  #t{position:absolute;width:46px;height:46px;border-radius:50%;cursor:pointer;",
+        "     background:linear-gradient(135deg,#6366f1,#a855f7);box-shadow:0 4px 14px rgba(124,58,237,.5)}",
+        "</style></head><body>",
+        '  <div id="b">Score : <span id="s">0</span> — attrape la cible !</div>',
+        '  <div id="t" style="left:120px;top:90px"></div>',
+        "  <script>",
+        "   var s=0,t=document.getElementById('t');",
+        "   function move(){t.style.left=(20+Math.random()*240)+'px';t.style.top=(50+Math.random()*150)+'px';}",
+        "   t.onclick=function(){s++;document.getElementById('s').textContent=s;move();};",
+        "   setInterval(move,900);",
+        "  <\/script>",
+        "</body></html>",
+      ].join("\n");
+
       const sample = [
-        "Voici le **flux OAuth 2.0** (Authorization Code) en bref :",
-        "",
-        "1. L'app redirige l'utilisateur vers le serveur d'autorisation",
-        "2. L'utilisateur s'authentifie et **consent**",
-        "3. Le serveur renvoie un `code`",
-        "4. L'app échange le `code` contre un *access token*",
-        "",
-        "```mermaid",
-        "sequenceDiagram",
-        "  participant U as Utilisateur",
-        "  participant A as App",
-        "  participant S as Serveur OAuth",
-        "  U->>A: Clic « Se connecter »",
-        "  A->>S: Redirection /authorize",
-        "  S-->>U: Page de consentement",
-        "  U->>S: Consent",
-        "  S-->>A: code",
-        "  A->>S: POST /token (code)",
-        "  S-->>A: access_token",
-        "```",
-        "",
-        "Et un bouton de connexion :",
+        "Voici un **mini-jeu** jouable directement dans l'artifact 👇",
+        "Clique sur la cible qui se déplace pour marquer des points.",
         "",
         "```html",
-        '<button style="padding:10px 18px;border:0;border-radius:8px;background:#c8643c;color:#fff;font:600 14px system-ui;cursor:pointer">Se connecter avec OAuth</button>',
+        game,
         "```",
       ].join("\n");
 
       configureMarkdown();
-      addMsg("user", "Explique-moi le flux OAuth 2.0 avec un schéma");
-      addThink("La page ouverte est la RFC 6749. L'utilisateur veut le flux Authorization Code. Je vais l'expliquer pas à pas, puis fournir un diagramme de séquence mermaid et un bouton d'exemple.");
+      addMsg("user", "Code-moi un petit jeu auquel je peux jouer ici");
+      addThink("L'utilisateur veut un jeu jouable. Je renvoie un document HTML autonome et interactif : il s'exécutera dans l'artifact sandboxé et sera directement jouable.");
       const a = addMsg("assistant", renderMarkdown(sample));
       enhanceArtifacts(a);
-
-      setTimeout(() => {
-        for (const b of a.querySelectorAll(".code-btn")) {
-          if (b.textContent === "Aperçu") b.click();
-        }
-        document.body.dataset.ready = "1";
-      }, 1200);
+      setTimeout(() => { document.body.dataset.ready = "1"; }, 1600);
     </script>
   </body>
 </html>

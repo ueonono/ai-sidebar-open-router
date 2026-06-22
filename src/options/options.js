@@ -1,5 +1,7 @@
 import { getSettings, setSettings } from "../lib/storage.js";
-import { PROVIDERS, PROVIDER_ORDER, IMAGE_SIZES } from "../lib/models.js";
+import { PROVIDERS, PROVIDER_ORDER, IMAGE_SIZES, WRITING_PRESETS } from "../lib/models.js";
+import { connectOpenRouter } from "../lib/auth.js";
+import { clearConversations } from "../lib/history.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -59,27 +61,21 @@ function buildProviderFields(settings) {
   }
 }
 
-function buildImageProvider(settings) {
-  const sel = $("imageProvider");
+function fillSelect(sel, items, value) {
   sel.innerHTML = "";
-  for (const id of PROVIDER_ORDER) {
-    if (!PROVIDERS[id].supportsImages) continue;
+  for (const [val, label] of items) {
     const o = document.createElement("option");
-    o.value = id;
-    o.textContent = PROVIDERS[id].label;
+    o.value = val;
+    o.textContent = label;
     sel.appendChild(o);
   }
-  sel.value = settings.imageProvider || "openai";
+  if (value != null) sel.value = value;
+}
 
-  const size = $("imageSize");
-  size.innerHTML = "";
-  for (const s of IMAGE_SIZES) {
-    const o = document.createElement("option");
-    o.value = s;
-    o.textContent = s;
-    size.appendChild(o);
-  }
-  size.value = settings.imageSize || "1024x1024";
+function buildImageProvider(settings) {
+  const imgProviders = PROVIDER_ORDER.filter((id) => PROVIDERS[id].supportsImages).map((id) => [id, PROVIDERS[id].label]);
+  fillSelect($("imageProvider"), imgProviders, settings.imageProvider || "openai");
+  fillSelect($("imageSize"), IMAGE_SIZES.map((s) => [s, s]), settings.imageSize || "1024x1024");
 }
 
 let settings;
@@ -88,16 +84,19 @@ async function load() {
   settings = await getSettings();
   buildProviderFields(settings);
   buildImageProvider(settings);
+  fillSelect($("improvePreset"), WRITING_PRESETS.map((p) => [p[0], p[1]]), settings.improvePreset || "improve");
   $("imageModel").value = settings.imageModel || "";
+  $("targetLang").value = settings.targetLang || "Français";
   $("thinking").checked = settings.thinking;
   $("webSearch").checked = settings.webSearch;
   $("agentMode").checked = settings.agentMode;
+  $("compareMode").checked = settings.compareMode;
   $("confirmActions").checked = settings.confirmActions;
   $("blockPayments").checked = settings.blockPayments;
   $("webmailAssist").checked = settings.webmailAssist;
+  $("saveHistory").checked = settings.saveHistory;
   $("includePageContext").checked = settings.includePageContext;
   $("autoReadPage").checked = settings.autoReadPage;
-  $("targetLang").value = settings.targetLang || "Français";
   $("maxPageChars").value = settings.maxPageChars;
 }
 
@@ -114,30 +113,59 @@ async function save() {
     if (m && m.value.trim()) models[id] = m.value.trim();
   }
   // Replace (do not merge): clearing a field deletes the stored key/URL/model.
-  const patch = {
+  await setSettings({
     keys,
     baseUrls,
     models,
     imageProvider: $("imageProvider").value,
     imageModel: $("imageModel").value.trim() || "gpt-image-1",
     imageSize: $("imageSize").value,
+    improvePreset: $("improvePreset").value,
+    targetLang: $("targetLang").value.trim() || "Français",
     thinking: $("thinking").checked,
     webSearch: $("webSearch").checked,
     agentMode: $("agentMode").checked,
+    compareMode: $("compareMode").checked,
     confirmActions: $("confirmActions").checked,
     blockPayments: $("blockPayments").checked,
     webmailAssist: $("webmailAssist").checked,
+    saveHistory: $("saveHistory").checked,
     includePageContext: $("includePageContext").checked,
     autoReadPage: $("autoReadPage").checked,
-    targetLang: $("targetLang").value.trim() || "Français",
     maxPageChars: parseInt($("maxPageChars").value, 10) || 12000,
-  };
-  await setSettings(patch);
+  });
   settings = await getSettings();
-  const st = $("status");
-  st.textContent = "✓ Enregistré.";
-  setTimeout(() => (st.textContent = ""), 2000);
+  flash($("status"), "✓ Enregistré.");
+}
+
+function flash(node, text) {
+  node.textContent = text;
+  setTimeout(() => (node.textContent = ""), 2000);
+}
+
+async function connect() {
+  const status = $("connectStatus");
+  $("connectBtn").disabled = true;
+  status.textContent = "Connexion…";
+  try {
+    const key = await connectOpenRouter();
+    const cur = await getSettings();
+    cur.keys = cur.keys || {};
+    cur.keys.openrouter = key;
+    await setSettings({ keys: cur.keys, provider: "openrouter" });
+    await load();
+    flash(status, "✓ Connecté à OpenRouter.");
+  } catch (e) {
+    flash(status, "Échec : " + (e && e.message ? e.message : e));
+  } finally {
+    $("connectBtn").disabled = false;
+  }
 }
 
 $("save").addEventListener("click", save);
+$("connectBtn").addEventListener("click", connect);
+$("clearHistoryBtn").addEventListener("click", async () => {
+  await clearConversations();
+  flash($("status"), "✓ Historique effacé.");
+});
 load();

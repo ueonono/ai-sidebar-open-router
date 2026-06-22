@@ -16,6 +16,18 @@
         l'extension — renseignez la vôtre, ou pointez un modèle local sans clé.
       </p>
 
+      <section>
+        <h2>Connexion par compte</h2>
+        <p class="muted">
+          Se connecter via un <b>compte</b> (Google, GitHub, email) n'est possible
+          qu'avec <b>OpenRouter</b>, qui donne ensuite accès à tous les modèles
+          (Claude, GPT, Gemini, Llama…). Les autres fournisseurs ne proposent qu'une
+          clé API à coller ci-dessous.
+        </p>
+        <button id="connectBtn" class="grad">Se connecter avec OpenRouter</button>
+        <span id="connectStatus" class="muted"></span>
+      </section>
+
       <h2>Fournisseurs d'IA</h2>
       <div id="providers"></div>
 
@@ -34,34 +46,44 @@
       </section>
 
       <section>
+        <h2>Rédaction</h2>
+        <label>Style d'écriture par défaut (mode Améliorer)
+          <select id="improvePreset"></select>
+        </label>
+        <label>Langue cible des traductions
+          <input type="text" id="targetLang" placeholder="Français" />
+        </label>
+      </section>
+
+      <section>
         <h2>Sécurité &amp; confidentialité</h2>
         <p class="muted">
           <b>Zéro rétention serveur</b> : cette extension n'a aucun serveur. Vos données
           (clés, conversations, contenu des pages) restent dans ce navigateur et ne sont
           envoyées qu'à l'API IA que vous choisissez. Aucune analytique, aucune télémétrie.
         </p>
-        <label class="check"><input type="checkbox" id="confirmActions" /> Demander confirmation avant chaque action (clic, saisie…)</label>
-        <label class="check"><input type="checkbox" id="blockPayments" /> <b>Garde-fou anti-achat</b> : l'agent ne peut jamais payer/commander (s'arrête au panier)</label>
-        <label class="check"><input type="checkbox" id="webmailAssist" /> Bouton « Répondre avec l'IA » sur les webmails (réponse assistée, jamais d'envoi auto)</label>
+        <label class="switch"><input type="checkbox" id="confirmActions" /><span class="track"></span><span class="lbl">Demander confirmation avant chaque action (clic, saisie…)</span></label>
+        <label class="switch"><input type="checkbox" id="blockPayments" /><span class="track"></span><span class="lbl"><b>Garde-fou anti-achat</b> : l'agent ne peut jamais payer/commander</span></label>
+        <label class="switch"><input type="checkbox" id="webmailAssist" /><span class="track"></span><span class="lbl">Bouton « Répondre avec l'IA » sur les webmails (jamais d'envoi auto)</span></label>
+        <label class="switch"><input type="checkbox" id="saveHistory" /><span class="track"></span><span class="lbl">Enregistrer l'historique des conversations (local uniquement)</span></label>
+        <button id="clearHistoryBtn" class="ghost">Effacer tout l'historique</button>
       </section>
 
       <section>
         <h2>Comportement</h2>
-        <label class="check"><input type="checkbox" id="thinking" /> Afficher le raisonnement du modèle (thinking)</label>
-        <label class="check"><input type="checkbox" id="webSearch" /> Recherche web (Claude uniquement)</label>
-        <label class="check"><input type="checkbox" id="agentMode" /> Activer le mode agent par défaut</label>
-        <label class="check"><input type="checkbox" id="includePageContext" /> L'IA voit la page consultée (injection auto en mode chat)</label>
-        <label class="check"><input type="checkbox" id="autoReadPage" /> Relire la page à chaque navigation (y compris sous-domaine)</label>
-        <label>Langue cible des traductions
-          <input type="text" id="targetLang" placeholder="Français" />
-        </label>
+        <label class="switch"><input type="checkbox" id="thinking" /><span class="track"></span><span class="lbl">Afficher le raisonnement du modèle (thinking)</span></label>
+        <label class="switch"><input type="checkbox" id="webSearch" /><span class="track"></span><span class="lbl">Recherche web (Claude uniquement)</span></label>
+        <label class="switch"><input type="checkbox" id="agentMode" /><span class="track"></span><span class="lbl">Activer le mode agent par défaut</span></label>
+        <label class="switch"><input type="checkbox" id="compareMode" /><span class="track"></span><span class="lbl">Mode comparaison (2 modèles) par défaut</span></label>
+        <label class="switch"><input type="checkbox" id="includePageContext" /><span class="track"></span><span class="lbl">L'IA voit la page consultée (injection auto en mode chat)</span></label>
+        <label class="switch"><input type="checkbox" id="autoReadPage" /><span class="track"></span><span class="lbl">Relire la page à chaque navigation (y compris sous-domaine)</span></label>
         <label>Taille max du contexte de page (caractères)
           <input type="number" id="maxPageChars" min="1000" max="100000" step="1000" />
         </label>
       </section>
 
       <div class="actions">
-        <button id="save">Enregistrer</button>
+        <button id="save" class="grad">Enregistrer</button>
         <span id="status" class="muted"></span>
       </div>
     </main>

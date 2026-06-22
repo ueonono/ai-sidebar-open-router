@@ -24,6 +24,9 @@
 * { box-sizing: border-box; }
 html, body {
   margin: 0; height: 100%;
+  /* Floor the width so the panel never collapses below a usable size
+     (matches a Firefox-native-sidebar-like minimum); narrower drags scroll. */
+  min-width: 320px;
   font: 13.5px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--bg); color: var(--text);
 }
@@ -64,6 +67,7 @@ button { cursor: pointer; }
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 8px 10px 9px; background: var(--panel);
 }
+.modelbar #modelConnect { flex: 1 1 auto; }
 .vs { color: var(--accent); font-weight: 700; font-size: 12px; }
 .select-wrap {
   flex: 1 1 140px; min-width: 0; position: relative; border-radius: var(--radius-sm);
@@ -104,14 +108,14 @@ button { cursor: pointer; }
 
 /* ----- Workspace mode tabs (segmented) ----- */
 .modebar {
-  display: flex; gap: 3px; padding: 7px 8px; overflow-x: auto;
+  display: flex; gap: 3px; padding: 7px 8px;
   background: var(--panel); border-bottom: 1px solid var(--border-soft);
 }
-.modebar::-webkit-scrollbar { height: 0; }
 .mode {
-  flex: 0 0 auto; padding: 7px 11px; font-size: 12px; font-weight: 600;
+  flex: 1 1 0; min-width: 0; padding: 7px 4px; font-size: 11.5px; font-weight: 600;
   border: 1px solid transparent; border-radius: 9px; background: transparent;
-  color: var(--muted); white-space: nowrap; transition: 0.15s;
+  color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-align: center; transition: 0.15s;
 }
 .mode:hover { color: var(--text); background: var(--panel-2); }
 .mode.active {

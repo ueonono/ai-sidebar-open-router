@@ -21,6 +21,8 @@ import {
 const $ = (id) => document.getElementById(id);
 const els = {
   modelSelect: $("modelSelect"),
+  modelWrap: $("modelWrap"),
+  modelConnect: $("modelConnect"),
   refreshModels: $("refreshModels"),
   historyBtn: $("historyBtn"),
   newChat: $("newChat"),
@@ -105,11 +107,10 @@ async function init() {
 }
 
 // ----- Unified model picker -------------------------------------------------
+// Only providers the user is actually connected to (key / account / local server).
+// Nothing connected => the picker is hidden and a Connect button is shown instead.
 function providersToShow() {
-  const set = [];
-  for (const id of connectedProviders(settings)) set.push(id);
-  if (!set.includes(settings.provider)) set.unshift(settings.provider);
-  return set;
+  return connectedProviders(settings);
 }
 
 // Models for a provider: the live-fetched list when we have one (authoritative —
@@ -148,7 +149,15 @@ function fillModelSelect(sel, selectedValue) {
 }
 
 function populateModelSelector() {
-  fillModelSelect(els.modelSelect, settings.provider + "|" + modelFor(settings.provider, settings));
+  const connected = connectedProviders(settings);
+  const none = connected.length === 0;
+  // First-run / nothing connected: no default models — show a Connect button.
+  els.modelConnect.classList.toggle("hidden", !none);
+  els.modelWrap.classList.toggle("hidden", none);
+  els.refreshModels.classList.toggle("hidden", none);
+  if (none) return;
+  const pid = connected.includes(settings.provider) ? settings.provider : connected[0];
+  fillModelSelect(els.modelSelect, pid + "|" + modelFor(pid, settings));
 }
 
 function parseSel(value) {
@@ -466,6 +475,7 @@ function wire() {
   els.newChat.addEventListener("click", newChat);
   els.openOptions.addEventListener("click", () => browser.runtime.openOptionsPage());
   els.connectBtn.addEventListener("click", () => browser.runtime.openOptionsPage());
+  els.modelConnect.addEventListener("click", () => browser.runtime.openOptionsPage());
 
   onSettingsChanged(async () => {
     settings = await getSettings();

@@ -54,3 +54,12 @@ button.ghost:hover { border-color: var(--accent); }
 .switch input:checked + .track { background: var(--grad); border-color: transparent; }
 .switch input:checked + .track::before { transform: translateX(18px); background: #fff; }
 .switch .lbl { font-size: 14px; }
+
+/* Provider cards */
+.provider-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.provider-head h3 { margin: 0; }
+.badge { font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+.badge.ok { color: #7ee787; border-color: #2ea04366; background: #13351f; }
+.badge.off { color: var(--muted); }
+.badge.free { color: #c4b5fd; border-color: #8b5cf666; background: #1e1b33; }
+button.small { padding: 6px 12px; font-size: 13px; }

@@ -1,22 +1,88 @@
 import { getSettings, setSettings } from "../lib/storage.js";
-import { PROVIDERS, PROVIDER_ORDER, IMAGE_SIZES, WRITING_PRESETS } from "../lib/models.js";
+import { PROVIDERS, PROVIDER_ORDER, IMAGE_SIZES, WRITING_PRESETS, isConnected } from "../lib/models.js";
 import { connectOpenRouter } from "../lib/auth.js";
+import { listModels } from "../lib/providers.js";
 import { clearConversations } from "../lib/history.js";
 
 const $ = (id) => document.getElementById(id);
 
-// Build one block per provider: API key (when required), base URL (local /
-// custom servers) and a default model.
-function buildProviderFields(settings) {
+// Providers that offer a free tier (free API key / free models).
+const FREE_TIER = new Set(["google", "groq", "openrouter", "mistral", "cerebras"]);
+// Providers that support real account OAuth (the rest use an API key).
+const OAUTH = new Set(["openrouter"]);
+
+let settings;
+let modelLists = {};
+
+// Build the list of model options for a provider's default-model dropdown:
+// live-fetched models when available (current models only), else the catalogue.
+function modelOptionsFor(id) {
+  const fetched = modelLists[id] || [];
+  const labels = new Map(PROVIDERS[id].models);
+  const ids = fetched.length ? fetched : PROVIDERS[id].models.map((m) => m[0]);
+  const seen = new Set();
+  const out = [["", "(défaut automatique)"]];
+  for (const m of ids) {
+    if (seen.has(m)) continue;
+    seen.add(m);
+    out.push([m, labels.get(m) || m]);
+  }
+  return out;
+}
+
+function fillModelSelect(sel, id) {
+  const chosen = (settings.models && settings.models[id]) || "";
+  sel.innerHTML = "";
+  for (const [val, label] of modelOptionsFor(id)) {
+    const o = document.createElement("option");
+    o.value = val;
+    o.textContent = label;
+    sel.appendChild(o);
+  }
+  sel.value = chosen;
+}
+
+// One card per provider: connection status, account/key, and a default-model menu.
+function buildProviderFields() {
   const root = $("providers");
   root.innerHTML = "";
   for (const id of PROVIDER_ORDER) {
     const meta = PROVIDERS[id];
     const sec = document.createElement("section");
+    sec.className = "provider-card";
+
+    const head = document.createElement("div");
+    head.className = "provider-head";
     const h = document.createElement("h3");
     h.textContent = meta.label + (meta.local ? "  (local, sans clé)" : "");
-    sec.appendChild(h);
+    head.appendChild(h);
+    const badge = document.createElement("span");
+    const connected = isConnected(id, settings);
+    badge.className = "badge " + (connected ? "ok" : "off");
+    badge.textContent = connected ? "✅ Connecté" : "○ Non connecté";
+    head.appendChild(badge);
+    if (FREE_TIER.has(id)) {
+      const free = document.createElement("span");
+      free.className = "badge free";
+      free.textContent = "gratuit dispo";
+      head.appendChild(free);
+    }
+    sec.appendChild(head);
 
+    // Account OAuth (only providers that support it).
+    if (OAUTH.has(id)) {
+      const btn = document.createElement("button");
+      btn.className = "grad small";
+      btn.textContent = "Se connecter avec mon compte";
+      btn.addEventListener("click", () => connect(id));
+      sec.appendChild(btn);
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "Connexion par compte (Google / GitHub / email) — débloque tous les modèles, y compris gratuits.";
+      sec.appendChild(p);
+    }
+
+    // API key.
     if (meta.needsKey || id === "custom") {
       const lab = document.createElement("label");
       lab.textContent = meta.needsKey ? "Clé API" : "Clé API (optionnelle)";
@@ -30,11 +96,13 @@ function buildProviderFields(settings) {
       if (meta.keysUrl) {
         const p = document.createElement("p");
         p.className = "muted";
-        p.innerHTML = `Obtenir une clé : <a href="${meta.keysUrl}" target="_blank" rel="noreferrer">${meta.keysUrl.replace(/^https?:\/\//, "")}</a>`;
+        const tag = FREE_TIER.has(id) ? "Obtenir une clé (offre gratuite) : " : "Obtenir une clé : ";
+        p.innerHTML = `${tag}<a href="${meta.keysUrl}" target="_blank" rel="noreferrer">${meta.keysUrl.replace(/^https?:\/\//, "")}</a>`;
         sec.appendChild(p);
       }
     }
 
+    // Base URL (local / custom).
     if (meta.local || meta.custom) {
       const lab = document.createElement("label");
       lab.textContent = "URL de base";
@@ -47,15 +115,14 @@ function buildProviderFields(settings) {
       sec.appendChild(lab);
     }
 
+    // Default model — dropdown of currently available models.
     const lab = document.createElement("label");
     lab.textContent = "Modèle par défaut";
-    const inp = document.createElement("input");
-    inp.type = "text";
-    inp.id = `model_${id}`;
-    inp.placeholder = (meta.models[0] && meta.models[0][0]) || "nom-du-modèle";
-    inp.value = (settings.models && settings.models[id]) || "";
-    lab.appendChild(inp);
+    const sel = document.createElement("select");
+    sel.id = `model_${id}`;
+    lab.appendChild(sel);
     sec.appendChild(lab);
+    fillModelSelect(sel, id);
 
     root.appendChild(sec);
   }
@@ -72,18 +139,37 @@ function fillSelect(sel, items, value) {
   if (value != null) sel.value = value;
 }
 
-function buildImageProvider(settings) {
+function buildImageProvider() {
   const imgProviders = PROVIDER_ORDER.filter((id) => PROVIDERS[id].supportsImages).map((id) => [id, PROVIDERS[id].label]);
   fillSelect($("imageProvider"), imgProviders, settings.imageProvider || "openai");
   fillSelect($("imageSize"), IMAGE_SIZES.map((s) => [s, s]), settings.imageSize || "1024x1024");
 }
 
-let settings;
+// Fetch the live model list for every connected provider, then refresh the
+// default-model dropdowns so they show only currently available models.
+async function refreshModelLists() {
+  const ids = PROVIDER_ORDER.filter((id) => isConnected(id, settings));
+  await Promise.allSettled(
+    ids.map(async (id) => {
+      try {
+        const list = await listModels(id, settings);
+        if (list && list.length) modelLists[id] = list;
+      } catch (_) {}
+    })
+  );
+  for (const id of ids) {
+    const sel = $(`model_${id}`);
+    if (sel) fillModelSelect(sel, id);
+  }
+  // Persist so the sidebar shows the same fresh lists.
+  await setSettings({ modelLists: { ...(settings.modelLists || {}), ...modelLists } });
+}
 
 async function load() {
   settings = await getSettings();
-  buildProviderFields(settings);
-  buildImageProvider(settings);
+  modelLists = { ...(settings.modelLists || {}) };
+  buildProviderFields();
+  buildImageProvider();
   fillSelect($("improvePreset"), WRITING_PRESETS.map((p) => [p[0], p[1]]), settings.improvePreset || "improve");
   $("imageModel").value = settings.imageModel || "";
   $("targetLang").value = settings.targetLang || "Français";
@@ -97,6 +183,7 @@ async function load() {
   $("includePageContext").checked = settings.includePageContext;
   $("autoReadPage").checked = settings.autoReadPage;
   $("maxPageChars").value = settings.maxPageChars;
+  refreshModelLists(); // background: fill dropdowns with live models
 }
 
 async function save() {
@@ -109,13 +196,10 @@ async function save() {
     const u = $(`url_${id}`);
     if (u && u.value.trim()) baseUrls[id] = u.value.trim();
     const m = $(`model_${id}`);
-    if (m && m.value.trim()) models[id] = m.value.trim();
+    if (m && m.value) models[id] = m.value;
   }
-  // Replace (do not merge): clearing a field deletes the stored key/URL/model.
   await setSettings({
-    keys,
-    baseUrls,
-    models,
+    keys, baseUrls, models,
     imageProvider: $("imageProvider").value,
     imageModel: $("imageModel").value.trim() || "gpt-image-1",
     imageSize: $("imageSize").value,
@@ -133,6 +217,8 @@ async function save() {
     maxPageChars: parseInt($("maxPageChars").value, 10) || 12000,
   });
   settings = await getSettings();
+  buildProviderFields(); // refresh statuses
+  refreshModelLists();
   flash($("status"), "✓ Enregistré.");
 }
 
@@ -141,27 +227,27 @@ function flash(node, text) {
   setTimeout(() => (node.textContent = ""), 2000);
 }
 
-async function connect() {
+// OAuth account connection (currently OpenRouter).
+async function connect(id) {
   const status = $("connectStatus");
-  $("connectBtn").disabled = true;
   status.textContent = "Connexion…";
   try {
-    const key = await connectOpenRouter();
-    const cur = await getSettings();
-    cur.keys = cur.keys || {};
-    cur.keys.openrouter = key;
-    await setSettings({ keys: cur.keys, provider: "openrouter" });
+    if (id === "openrouter") {
+      const key = await connectOpenRouter();
+      const cur = await getSettings();
+      cur.keys = cur.keys || {};
+      cur.keys.openrouter = key;
+      await setSettings({ keys: cur.keys, provider: "openrouter" });
+    }
     await load();
-    flash(status, "✓ Connecté à OpenRouter.");
+    flash(status, "✓ Connecté.");
   } catch (e) {
     flash(status, "Échec : " + (e && e.message ? e.message : e));
-  } finally {
-    $("connectBtn").disabled = false;
   }
 }
 
 $("save").addEventListener("click", save);
-$("connectBtn").addEventListener("click", connect);
+$("connectBtn").addEventListener("click", () => connect("openrouter"));
 $("clearHistoryBtn").addEventListener("click", async () => {
   await clearConversations();
   flash($("status"), "✓ Historique effacé.");

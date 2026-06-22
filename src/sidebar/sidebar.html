@@ -121,12 +121,14 @@
       </div>
     </div>
 
-    <!-- Unified model picker: between the controls and the composer -->
+    <!-- Unified model picker: between the controls and the composer.
+         When no provider is connected, the picker is replaced by a Connect button. -->
     <div class="modelbar">
-      <div class="select-wrap">
+      <div class="select-wrap" id="modelWrap">
         <select id="modelSelect" title="Modèle"></select>
       </div>
       <button id="refreshModels" class="icon" title="Rafraîchir les modèles disponibles">⟳</button>
+      <button id="modelConnect" class="btn-grad hidden">🔌 Se connecter à un fournisseur</button>
     </div>
 
     <footer class="composer">

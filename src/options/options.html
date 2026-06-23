@@ -7,6 +7,8 @@
     <title data-i18n="opt.title">AI Sidebar — Settings</title>
   </head>
   <body>
+    <!-- Quick navigation: vertical jump pins to each settings section (built in options.js). -->
+    <nav id="quicknav" class="quicknav" aria-label="Settings sections"></nav>
     <main>
       <h1 data-i18n="opt.title">AI Sidebar — Settings</h1>
       <p class="muted" data-i18n-html="opt.intro">
@@ -14,7 +16,7 @@
         (<code>storage.local</code>), never synced, and sent only to the API you choose.
       </p>
 
-      <section class="quickconnect">
+      <section class="quickconnect" id="sec-quick">
         <h2 style="margin-top:0" data-i18n="opt.quick.h">⚡ Quick connect</h2>
         <p class="muted" data-i18n-html="opt.quick.p">
           Simplest: connect your <b>OpenRouter</b> account in 1 click.
@@ -23,13 +25,15 @@
         <span id="quickStatus" class="muted"></span>
       </section>
 
-      <h2 data-i18n="opt.providers.h">AI providers</h2>
-      <p class="muted" data-i18n-html="opt.providers.p">
-        Click « 🔐 Connect » on a provider to open its sign-in page.
-      </p>
-      <div id="providers"></div>
+      <section id="sec-providers">
+        <h2 data-i18n="opt.providers.h">AI providers</h2>
+        <p class="muted" data-i18n-html="opt.providers.p">
+          Click « 🔐 Connect » on a provider to open its sign-in page.
+        </p>
+        <div id="providers"></div>
+      </section>
 
-      <section>
+      <section id="sec-agent">
         <h2 data-i18n="opt.agent.h">🤖 Agent mode</h2>
         <p class="muted" data-i18n-html="opt.agent.p">
           In Agent mode the AI drives the browser through tools.
@@ -48,7 +52,7 @@
         </p>
       </section>
 
-      <section>
+      <section id="sec-web">
         <h2 data-i18n="opt.web.h">🌐 Web search</h2>
         <p class="muted" data-i18n-html="opt.web.p">
           In Web mode the request is sent to a web-capable model.
@@ -58,7 +62,7 @@
         </label>
       </section>
 
-      <section>
+      <section id="sec-image">
         <h2 data-i18n="opt.img.h">Image generation</h2>
         <label><span data-i18n="opt.img.provider">Image provider</span>
           <select id="imageProvider"></select>
@@ -74,7 +78,7 @@
         </p>
       </section>
 
-      <section>
+      <section id="sec-code">
         <h2 data-i18n-html="opt.code.h">&lt;/&gt; Code workshop</h2>
         <p class="muted" data-i18n-html="opt.code.p">
           The Code tab opens Program Generator in a new tab.
@@ -84,7 +88,7 @@
         </label>
       </section>
 
-      <section>
+      <section id="sec-lang">
         <h2 data-i18n="opt.lang.h">Language &amp; writing</h2>
         <label><span data-i18n="opt.lang.ui">Interface language (sidebar)</span>
           <select id="uiLang">
@@ -103,7 +107,24 @@
         </label>
       </section>
 
-      <section>
+      <section id="sec-appearance">
+        <h2 data-i18n="opt.layout.h">🎨 Appearance &amp; layout</h2>
+        <label><span data-i18n="opt.layout.rail">Tabs menu position</span>
+          <select id="railSide">
+            <option value="left" data-i18n="opt.layout.left">Left (default)</option>
+            <option value="right" data-i18n="opt.layout.right">Right</option>
+          </select>
+        </label>
+        <p class="muted" data-i18n-html="opt.layout.note">
+          Moves the workspace tabs (Chat, Agent…) to the left or right <b>inside</b> the
+          sidebar. The sidebar's own left/right position is set by the browser, not the
+          extension (Firefox: right-click the sidebar header → « Move sidebar to the
+          right »; Chrome's side panel is right-only). Tip: the ⤢ « open in a tab »
+          button gives a full-screen view you can place anywhere.
+        </p>
+      </section>
+
+      <section id="sec-security">
         <h2 data-i18n="opt.sec.h">Security &amp; privacy</h2>
         <p class="muted" data-i18n-html="opt.sec.p">
           Zero server retention: this extension has no server.
@@ -114,7 +135,7 @@
         <button id="clearHistoryBtn" class="ghost" data-i18n="opt.sec.clearBtn">Clear all history</button>
       </section>
 
-      <section>
+      <section id="sec-behavior">
         <h2 data-i18n="opt.behavior.h">Behavior</h2>
         <p class="muted" data-i18n-html="opt.behavior.reasoning">
           The reasoning is controlled directly from the sidebar.

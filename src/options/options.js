@@ -292,11 +292,42 @@ function updateQuickConnect(connectedNow) {
   }
 }
 
+// Quick-navigation pins: one per settings section, with smooth scroll + a scroll-spy
+// that highlights the section currently in view. Built from <section id> + its <h2>.
+function buildQuickNav() {
+  const nav = $("quicknav");
+  if (!nav) return;
+  nav.innerHTML = "";
+  nav.appendChild(el("span", "qn-label", t("opt.nav.label")));
+  const links = [];
+  document.querySelectorAll("main > section[id]").forEach((sec) => {
+    const h = sec.querySelector("h2");
+    if (!h) return;
+    const a = el("a", "qn-pin", h.textContent.trim());
+    a.href = "#" + sec.id;
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      sec.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(null, "", "#" + sec.id);
+    });
+    nav.appendChild(a);
+    links.push({ a, sec });
+  });
+  const spy = () => {
+    let active = links[0];
+    for (const l of links) if (l.sec.getBoundingClientRect().top <= 96) active = l;
+    links.forEach((l) => l.a.classList.toggle("active", l === active));
+  };
+  window.addEventListener("scroll", spy, { passive: true });
+  spy();
+}
+
 async function load() {
   settings = await getSettings();
   setLang(settings.uiLang || "en");       // English default; French via the uiLang setting
   applyDom(document);                      // fill all data-i18n static markup
   document.documentElement.lang = settings.uiLang === "fr" ? "fr" : "en";
+  buildQuickNav();                         // jump pins to each section
   modelLists = { ...(settings.modelLists || {}) };
   buildProviderFields();
   buildImageProvider();
@@ -307,6 +338,7 @@ async function load() {
   updateQuickConnect(isConnected("openrouter", settings));
   $("imageModel").value = settings.imageModel || "";
   $("uiLang").value = settings.uiLang || "en";
+  $("railSide").value = settings.railSide === "right" ? "right" : "left";
   $("targetLang").value = settings.targetLang || "French";
   $("webSearch").checked = settings.webSearch;
   $("orFreeOnly").checked = settings.orFreeOnly !== false;
@@ -343,6 +375,7 @@ async function save() {
     imageSize: $("imageSize").value,
     improvePreset: $("improvePreset").value,
     uiLang: $("uiLang").value === "fr" ? "fr" : "en",
+    railSide: $("railSide").value === "right" ? "right" : "left",
     responseLang: $("responseLang").value,
     targetLang: $("targetLang").value.trim() || "French",
     webSearch: $("webSearch").checked,

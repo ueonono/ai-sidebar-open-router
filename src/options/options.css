@@ -12,8 +12,9 @@
 body {
   font: 15px/1.55 system-ui, sans-serif; background: var(--bg); color: var(--text);
   margin: 0; padding: 28px 18px;
+  display: flex; gap: 24px; align-items: flex-start; justify-content: center;
 }
-main { max-width: 640px; margin: 0 auto; }
+main { flex: 0 1 640px; min-width: 0; }
 h1 {
   font-size: 22px;
   background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
@@ -85,3 +86,35 @@ section > .muted:first-of-type { margin-top: 0; }
   border: 1px solid #8b5cf655;
 }
 .quickconnect #quickStatus { margin-left: 12px; }
+
+/* ----- Quick navigation (vertical jump pins) ----- */
+.quicknav {
+  position: sticky; top: 28px; flex: 0 0 auto; width: 196px;
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: calc(100vh - 56px); overflow-y: auto;
+  padding: 8px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--panel);
+}
+.qn-label {
+  color: var(--muted); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .04em; padding: 2px 8px 6px;
+}
+.qn-pin {
+  display: block; font-size: 13px; color: var(--text); text-decoration: none;
+  padding: 7px 10px; border: 1px solid transparent; border-radius: 9px;
+  background: transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: 0.15s;
+}
+.qn-pin:hover { background: var(--panel-2); border-color: var(--border); }
+.qn-pin.active { background: var(--grad); border-color: transparent; color: #fff; }
+main > section[id], section[id] { scroll-margin-top: 20px; }
+
+/* Narrow window: stack the nav horizontally on top. */
+@media (max-width: 760px) {
+  body { flex-direction: column; align-items: stretch; }
+  .quicknav {
+    position: sticky; top: 0; z-index: 20; width: auto; flex-direction: row;
+    flex-wrap: wrap; max-height: none; border-radius: 10px;
+  }
+  .qn-label { display: none; }
+}

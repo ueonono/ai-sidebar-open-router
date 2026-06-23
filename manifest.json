@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Sidebar — IA multi-fournisseurs",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "description": "Sidebar IA open-source type Sider : branchez votre IA (Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, xAI, Perplexity, Together, Fireworks, OpenRouter, Ollama/LM Studio local…). Liste les modèles réellement dispo selon votre clé/compte. Lit page et onglets, résume, traduit, améliore (presets), compare un modèle à un autre, artifacts interactifs, images, répond aux mails, agent (sans achat). Historique local, 100% BYOK.",
   "author": "Florian Martins",
   "content_security_policy": {

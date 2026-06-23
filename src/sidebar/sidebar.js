@@ -38,9 +38,6 @@ const els = {
   filterProviders: $("filterProviders"),
   filterReset: $("filterReset"),
   filterClose: $("filterClose"),
-  termFilterBtn: $("termFilterBtn"),
-  termModelInput: $("termModelInput"),
-  termModelMenu: $("termModelMenu"),
   freeConnect: $("freeConnect"),
   emptyOptions: $("emptyOptions"),
   historyBtn: $("historyBtn"),
@@ -69,10 +66,6 @@ const els = {
   codeView: $("codeView"),
   openCodeApp: $("openCodeApp"),
   codeAppUrlLabel: $("codeAppUrlLabel"),
-  terminalView: $("terminalView"),
-  termLog: $("termLog"),
-  termInput: $("termInput"),
-  termClear: $("termClear"),
   chatControls: $("chatControls"),
   translateControls: $("translateControls"),
   improveControls: $("improveControls"),
@@ -120,9 +113,6 @@ let lastUserContent = "";
 let lastRunMode = "chat";
 let lastForceWeb = false;
 
-// Terminal workspace (OpenClaude): its own native message history + persisted
-// scrollback, independent from the chat. `cmds`/`cmdIdx` drive ↑/↓ recall.
-const term = { native: [], lines: [], cmds: [], cmdIdx: 0, booted: false };
 
 // Composer attachments (files/images the AI gets as context). Transient — bound to
 // the next message, cleared after a send or when switching workspace. Each entry:
@@ -133,13 +123,11 @@ const ATT_IMG_MAX_MB = 10;   // an image bigger than this is rejected (base64 bl
 const ATT_TXT_MAX_MB = 25;   // a text/PDF file bigger than this is rejected
 const ATT_TXT_BUDGET = 16000; // chars of EACH attached text file folded into the prompt
 
-// Searchable model comboboxes (main picker + terminal picker). `mainValue` /
-// `termValue` hold the selected "providerId|modelId"; the combo objects render the
-// floating, type-to-filter lists. The price/provider filter persists in settings.
+// Searchable model combobox (main picker). `mainValue` holds the selected
+// "providerId|modelId"; `mainCombo` renders the floating, type-to-filter list.
+// The price/provider filter persists in settings.
 let mainValue = "";
-let termValue = "";
 let mainCombo = null;
-let termCombo = null;
 let filterPersistTimer = null;
 
 // Per-workspace isolation: Chat, Agent, Translate, Improve and Image each keep
@@ -203,6 +191,7 @@ async function init() {
   setLang(settings.uiLang || "en");   // English by default; French chosen in Settings
   applyDom(document);                  // fill all data-i18n static markup
   document.documentElement.lang = settings.uiLang === "fr" ? "fr" : "en";
+  document.body.classList.toggle("rail-right", settings.railSide === "right");
   populateModelSelector();
   populateImprovePresets();
   els.thinking.checked = settings.thinking;
@@ -511,12 +500,10 @@ function populateModelSelector() {
   if (connected.length) {
     const pid = connected.includes(settings.provider) ? settings.provider : connected[0];
     mainValue = pid + "|" + modelFor(pid, settings);
-    if (!termValue) termValue = mainValue;
   } else {
     mainValue = "";
   }
   if (mainCombo) mainCombo.refresh();
-  if (termCombo) termCombo.refresh();
   els.modelFilterBtn.classList.toggle("active", filterIsActive());
   updateEmptyState();
 }
@@ -530,7 +517,6 @@ function updateEmptyState() {
   els.emptyGreeting.classList.toggle("hidden", !connected);
   if (connected) {
     els.emptyGreeting.textContent =
-      mode === "terminal" ? t("greeting.terminal") :
       mode === "agent" ? t("greeting.agent") :
       mode === "pdf" ? t("greeting.pdf") :
       mode === "translate" ? t("greeting.translate") :
@@ -605,18 +591,6 @@ async function onMainPick(value) {
     return;
   }
   await applyModelChoice(value);
-  termValue = value; // keep the Terminal picker in sync
-  if (termCombo) termCombo.refresh();
-}
-// A model was picked in the TERMINAL combobox.
-async function onTermPick(value) {
-  termValue = value;
-  const sel = await applyModelChoice(value);
-  if (sel) {
-    termAppend("sys", t("term.modelLine", { model: sel.modelId }));
-    mainValue = value;
-    if (mainCombo) mainCombo.refresh();
-  }
 }
 
 // One-click free onboarding: OAuth to OpenRouter (free models, no manual key).
@@ -869,7 +843,6 @@ function persistFilter() {
 // Re-render whatever is open after a filter change.
 function afterFilterChange() {
   if (mainCombo) mainCombo.render();
-  if (termCombo) termCombo.render();
   applyModelFilter();
   els.modelFilterBtn.classList.toggle("active", filterIsActive());
 }
@@ -1007,6 +980,8 @@ function openInTab() {
 // "Ask about this element": the user points at a table / image / menu on the page;
 // we capture its text + a cropped screenshot (vision) and stage them as attachments,
 // so the next message can ask a question grounded in that exact element.
+let picking = false;
+let pickTabId = null;
 async function getActiveTabId() {
   try {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
@@ -1016,44 +991,49 @@ async function getActiveTabId() {
 function loadImage(src) {
   return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 }
-async function captureElementShot(rect, dpr) {
-  await new Promise((r) => setTimeout(r, 160)); // let the picker overlay clear + repaint
-  const shot = await browser.tabs.captureVisibleTab(undefined, { format: "png" });
-  const img = await loadImage(shot);
+function cropFromShot(img, rect, dpr) {
   const sx = Math.max(0, rect.x * dpr), sy = Math.max(0, rect.y * dpr);
   const sw = Math.min(img.width - sx, rect.w * dpr), sh = Math.min(img.height - sy, rect.h * dpr);
-  if (sw <= 4 || sh <= 4) return shot; // tiny/odd rect → fall back to the full screenshot
+  if (sw <= 4 || sh <= 4) return null; // off-screen / tiny → no usable crop
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(sw); canvas.height = Math.round(sh);
   canvas.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/png");
 }
+function finishPicking() { picking = false; pickTabId = null; els.pickEl.classList.remove("active"); }
+// Cancel an in-progress pick (re-click the button, click in the sidebar, or Esc).
+function cancelPicking() {
+  if (!picking) return;
+  const id = pickTabId;
+  if (id != null) { try { browser.tabs.sendMessage(id, { type: "pick_cancel" }); } catch (_) {} }
+}
 async function pickElement() {
+  if (picking) return;
   const tabId = await getActiveTabId();
   if (tabId == null) { addMessage("error", t("pick.error")); return; }
   if (mode !== "chat" && mode !== "agent") setMode("chat");
+  picking = true; pickTabId = tabId; els.pickEl.classList.add("active");
   const note = addMessage("tool", t("pick.start"));
   let res;
   try {
     res = await browser.tabs.sendMessage(tabId, { type: "pick_element" });
   } catch (_) {
-    note.remove();
+    note.remove(); finishPicking();
     addMessage("error", t("pick.error"));
     return;
   }
-  note.remove();
-  if (!res || res.cancelled) return;
-  // Cropped screenshot of the element (works for tables, images, menus…) for vision.
-  try {
-    const shot = await captureElementShot(res.rect, res.dpr || 1);
-    if (shot) attachments.push({ type: "image", name: t("pick.imgName", { tag: res.tag }), dataUrl: shot, mediaType: "image/png" });
-  } catch (_) {}
-  // Element text/structure for non-vision models.
-  if (res.text) {
-    attachments.push({ type: "text", name: t("pick.attName", { tag: res.tag }), text: `[Selected <${res.tag}> on ${res.title} — ${res.url}]\n${res.text}` });
+  note.remove(); finishPicking();
+  const list = (res && res.elements) || [];
+  if (!res || res.cancelled || !list.length) return;
+  // One screenshot of the current viewport; crop each selected element from it.
+  let img = null;
+  try { await new Promise((r) => setTimeout(r, 140)); img = await loadImage(await browser.tabs.captureVisibleTab(undefined, { format: "png" })); } catch (_) {}
+  for (const el of list) {
+    if (img) { const crop = cropFromShot(img, el.rect, res.dpr || 1); if (crop) attachments.push({ type: "image", name: t("pick.imgName", { tag: el.tag }), dataUrl: crop, mediaType: "image/png" }); }
+    if (el.text) attachments.push({ type: "text", name: t("pick.attName", { tag: el.tag }), text: `[Selected <${el.tag}> on ${res.title} — ${res.url}]\n${el.text}` });
   }
   renderAttachStrip();
-  addMessage("tool", t("pick.added", { tag: res.tag }));
+  addMessage("tool", list.length > 1 ? t("pick.addedN", { n: list.length }) : t("pick.added", { tag: list[0].tag }));
   els.input.focus();
 }
 
@@ -1081,18 +1061,11 @@ function setMode(next) {
   if (!composeExtras && attachments.length) clearAttachments();
   els.modelFilterPanel.classList.add("hidden");
   if (mainCombo) mainCombo.close();
-  if (termCombo) termCombo.close();
-  document.body.classList.toggle("mode-terminal", next === "terminal");
   document.body.classList.toggle("mode-code", next === "code");
-  els.terminalView.classList.toggle("hidden", next !== "terminal");
   els.codeView.classList.toggle("hidden", next !== "code");
   els.input.placeholder = placeholderFor(next);
   refreshModelUI(); // Image tab lists image models; others list chat models.
   if (CHAT_MODES.includes(next)) restoreMode(next); // re-attach this tab's own message nodes
-  if (next === "terminal") {
-    termBoot();
-    setTimeout(() => els.termInput.focus(), 0);
-  }
   if (next === "code") updateCodeLauncher();
   updateEmptyState();
 }
@@ -1127,122 +1100,6 @@ async function openCodeApp() {
   if (!(settings.codeAppUrl || "").trim()) return browser.runtime.openOptionsPage();
   const url = codeAppLaunchUrl();
   try { await browser.tabs.create({ url }); } catch (_) { window.open(url, "_blank", "noopener"); }
-}
-
-// ----- Terminal workspace (OpenClaude) --------------------------------------
-function termModelLabel() {
-  const sel = parseSel(termValue);
-  if (!sel.providerId) return t("term.noModel");
-  return sel.modelId;
-}
-// Append a line/block to the terminal scrollback. `kind`: banner | sys | cmd | out | err.
-function termAppend(kind, text) {
-  const div = document.createElement("div");
-  if (kind === "cmd") {
-    div.className = "term-cmd";
-    const p = document.createElement("span"); p.className = "term-prompt"; p.textContent = "claude>";
-    const t = document.createElement("span"); t.textContent = " " + text;
-    div.appendChild(p); div.appendChild(t);
-  } else if (kind === "out") {
-    div.className = "term-out";
-    div.innerHTML = renderMarkdown(text || "");
-    enhanceArtifacts(div);
-  } else if (kind === "err") {
-    div.className = "term-line term-err"; div.textContent = text;
-  } else if (kind === "banner") {
-    div.className = "term-line banner"; div.textContent = text;
-  } else {
-    div.className = "term-line sys"; div.textContent = text;
-  }
-  els.termLog.appendChild(div);
-  els.termLog.scrollTop = els.termLog.scrollHeight;
-  return div;
-}
-function termPrintBanner() {
-  termAppend("banner", t("term.banner"));
-  termAppend("sys", "$ claude");
-  termAppend("sys", t("term.sessionStarted", { model: termModelLabel() }));
-  termAppend("sys", t("term.describeTask"));
-}
-// Boot once per page load: print banner, then replay any locally-saved session.
-function termBoot() {
-  if (term.booted) return;
-  term.booted = true;
-  termPrintBanner();
-  const s = settings.terminalSession;
-  if (s && Array.isArray(s.lines) && s.lines.length) {
-    term.native = Array.isArray(s.native) ? s.native : [];
-    for (const ln of s.lines) {
-      termAppend(ln.kind, ln.text);
-      term.lines.push(ln);
-      if (ln.kind === "cmd") term.cmds.push(ln.text);
-    }
-    term.cmdIdx = term.cmds.length;
-    termAppend("sys", t("term.restored"));
-  }
-}
-async function termPersist() {
-  await setSettings({ terminalSession: { lines: term.lines, native: term.native } });
-}
-function termClearAll() {
-  els.termLog.innerHTML = "";
-  term.lines = []; term.native = []; term.cmds = []; term.cmdIdx = 0;
-  termPrintBanner();
-  termPersist();
-}
-function autoGrowTerm() {
-  els.termInput.style.height = "auto";
-  els.termInput.style.height = Math.min(els.termInput.scrollHeight, 120) + "px";
-}
-async function termSend(rawText) {
-  const text = (rawText || "").trim();
-  if (!text || busy) return;
-  els.termInput.value = "";
-  autoGrowTerm();
-  const lower = text.toLowerCase();
-  if (lower === "clear" || lower === "cls") return termClearAll();
-  if (lower === "help") {
-    termAppend("sys", t("term.help"));
-    return;
-  }
-  const sel = parseSel(termValue);
-  if (!sel.providerId || currentKeyMissing(sel.providerId)) {
-    termAppend("err", t("term.noModelConnected"));
-    return;
-  }
-  term.cmds.push(text); term.cmdIdx = term.cmds.length;
-  termAppend("cmd", text);
-  term.lines.push({ kind: "cmd", text });
-
-  startBusy();
-  term.native.push({ role: "user", content: text });
-  const provider = makeProvider(
-    { ...settings, provider: sel.providerId, models: { ...settings.models, [sel.providerId]: sel.modelId } },
-    { thinking: false, webSearch: false }
-  );
-  const system = buildSystemPrompt({
-    agentMode: false, targetLang: settings.targetLang, responseLang: settings.responseLang,
-    mode: "terminal", blockPayments: settings.blockPayments,
-  });
-  const out = termAppend("out", "");
-  let raw = "";
-  try {
-    await runConversation({
-      provider, system, history: term.native, tools: [],
-      onText: (d) => { raw += d; out.innerHTML = renderMarkdown(raw); els.termLog.scrollTop = els.termLog.scrollHeight; },
-      onThink: () => {},
-      signal: abortController.signal,
-    });
-    out.innerHTML = renderMarkdown(raw); enhanceArtifacts(out);
-    term.lines.push({ kind: "out", text: raw });
-  } catch (e) {
-    out.remove();
-    if (e && e.name === "AbortError") termAppend("err", t("term.interrupted"));
-    else termAppend("err", "✗ " + (e && e.message ? e.message : String(e)));
-  } finally {
-    endBusy();
-    await termPersist();
-  }
 }
 
 // ----- Page awareness -------------------------------------------------------
@@ -1456,22 +1313,20 @@ async function consumePendingAction() {
 
 // ----- Wiring ---------------------------------------------------------------
 function wire() {
-  // Searchable model comboboxes (main picker + terminal picker).
+  // Searchable model combobox (main picker).
   mainCombo = makeCombo({
     input: els.modelInput, menu: els.modelMenu,
     items: () => (mode === "image" ? imageComboItems() : chatComboItems()),
     getValue: () => mainValue, onPick: onMainPick,
   });
-  termCombo = makeCombo({
-    input: els.termModelInput, menu: els.termModelMenu,
-    items: () => chatComboItems(),
-    getValue: () => termValue, onPick: onTermPick,
-  });
-  // Close any open combo menu when clicking outside it.
+  // Close the combo menu when clicking outside it; also cancel element-pick mode when
+  // the user clicks back in the sidebar (anywhere but the pick button).
   document.addEventListener("mousedown", (e) => {
     if (mainCombo.isOpen() && e.target !== els.modelInput && !els.modelMenu.contains(e.target)) mainCombo.close();
-    if (termCombo.isOpen() && e.target !== els.termModelInput && !els.termModelMenu.contains(e.target)) termCombo.close();
+    if (picking && !els.pickEl.contains(e.target)) cancelPicking();
   });
+  // Esc cancels element-pick mode even when focus is in the sidebar.
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && picking) cancelPicking(); });
 
   // Open the sidebar as a full-screen browser tab (hidden when already in a tab).
   if (IS_TAB) els.expandTab.hidden = true;
@@ -1486,13 +1341,12 @@ function wire() {
 
   // Model filter popover (price tiers + providers / OpenRouter sub-vendors).
   els.modelFilterBtn.addEventListener("click", () => toggleFilterPanel(els.modelFilterBtn));
-  if (els.termFilterBtn) els.termFilterBtn.addEventListener("click", () => toggleFilterPanel(els.termFilterBtn));
   els.modelFilterPanel.querySelectorAll(".ftier-cb").forEach((cb) => cb.addEventListener("change", onTierFilterChange));
   els.filterReset.addEventListener("click", resetFilter);
   els.filterClose.addEventListener("click", () => els.modelFilterPanel.classList.add("hidden"));
   document.addEventListener("click", (e) => {
     if (els.modelFilterPanel.classList.contains("hidden")) return;
-    if (els.modelFilterPanel.contains(e.target) || els.modelFilterBtn.contains(e.target) || (els.termFilterBtn && els.termFilterBtn.contains(e.target))) return;
+    if (els.modelFilterPanel.contains(e.target) || els.modelFilterBtn.contains(e.target)) return;
     els.modelFilterPanel.classList.add("hidden");
   });
 
@@ -1558,7 +1412,7 @@ function wire() {
     if (show) await buildTabsList();
     els.tabsPanel.classList.toggle("hidden");
   });
-  els.pickEl.addEventListener("click", (e) => { e.stopPropagation(); pickElement(); });
+  els.pickEl.addEventListener("click", (e) => { e.stopPropagation(); picking ? cancelPicking() : pickElement(); });
   els.tabsRefresh.addEventListener("click", (e) => { e.stopPropagation(); buildTabsList(); });
   els.tabsList.addEventListener("change", persistSelectedTabs);
 
@@ -1569,25 +1423,6 @@ function wire() {
   els.input.addEventListener("input", autoGrow);
   els.stop.addEventListener("click", () => abortController && abortController.abort());
   els.newChat.addEventListener("click", newChat);
-
-  // Terminal workspace events (dedicated input line, model picker, clear).
-  els.termInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); termSend(els.termInput.value); return; }
-    if (e.key === "ArrowUp" && !e.shiftKey && term.cmds.length) {
-      e.preventDefault();
-      term.cmdIdx = Math.max(0, term.cmdIdx - 1);
-      els.termInput.value = term.cmds[term.cmdIdx] || "";
-      autoGrowTerm();
-    } else if (e.key === "ArrowDown" && !e.shiftKey && term.cmds.length) {
-      e.preventDefault();
-      term.cmdIdx = Math.min(term.cmds.length, term.cmdIdx + 1);
-      els.termInput.value = term.cmds[term.cmdIdx] || "";
-      autoGrowTerm();
-    }
-  });
-  els.termInput.addEventListener("input", autoGrowTerm);
-  els.termClear.addEventListener("click", termClearAll);
-  // (The terminal model picker is a combobox; selection is handled by onTermPick.)
 
   els.openOptions.addEventListener("click", () => browser.runtime.openOptionsPage());
   els.modelConnect.addEventListener("click", () => browser.runtime.openOptionsPage());
@@ -1602,6 +1437,7 @@ function wire() {
     // A UI-language switch in Settings: reload so every static + dynamic string is
     // rebuilt in the new language (simplest and fully consistent).
     if (changes.uiLang) { location.reload(); return; }
+    if (changes.railSide) document.body.classList.toggle("rail-right", changes.railSide.newValue === "right");
     const connChanged = !!(changes.keys || changes.baseUrls || changes.localEnabled);
     if (!connChanged && !changes.modelLists && !changes.orModels && !changes.codeAppUrl && !changes.orFreeOnly) return;
     settings = await getSettings();
@@ -1967,17 +1803,8 @@ async function onSend() {
   if (mode === "improve") return runImproveFromInput();
   if (mode === "image") return runImageFromInput();
   if (mode === "pdf") return onPdfSend();
-  if (mode === "terminal") return onTerminalSend();
   if (mode === "code") return; // Code workspace has no composer — use the launcher button.
   return onChatSend(); // chat + agent
-}
-
-// Terminal/dev mode: send the raw prompt with the dev persona, no page injection.
-async function onTerminalSend() {
-  const text = els.input.value.trim();
-  if (!text) return;
-  els.input.value = "";
-  await sendToModel(text, text, { runMode: "terminal" });
 }
 async function onChatSend() {
   const text = els.input.value.trim();

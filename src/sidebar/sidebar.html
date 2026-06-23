@@ -35,9 +35,9 @@
 
     <!-- Page chip + multi-tab picker -->
     <div id="pageBar" class="pagebar hidden" data-i18n-title="pagebar.title" title="Page seen by the AI">
-      <span class="eye">👁</span>
+      <span class="eye">🔍</span>
       <span id="pageTitle" class="page-title"></span>
-      <button id="pickEl" class="icon" data-i18n-title="pick.title" title="Pick an element on the page to ask about it"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v3.5"/></svg></button>
+      <button id="pickEl" class="icon" data-i18n-title="pick.title" title="Pick an element on the page to ask about it">🖱️</button>
       <button id="tabsBtn" class="icon" data-i18n-title="tabs.btnTitle" title="Choose which tabs to give the AI">📑</button>
     </div>
     <div id="tabsPanel" class="panel hidden">
@@ -59,8 +59,7 @@
         <button class="railtab" data-mode="improve" data-i18n-title="rail.improveTitle" title="Improve a text"><span class="ri">✨</span><span class="rl" data-i18n="rail.improve">Improve</span></button>
         <button class="railtab" data-mode="image" data-i18n-title="rail.imageTitle" title="Generate an image"><span class="ri">🎨</span><span class="rl" data-i18n="rail.image">Image</span></button>
         <button class="railtab" data-mode="pdf" data-i18n-title="rail.pdfTitle" title="Read a PDF and ask questions"><span class="ri">📄</span><span class="rl" data-i18n="rail.pdf">PDF</span></button>
-        <button class="railtab" data-mode="terminal" data-i18n-title="rail.terminalTitle" title="Terminal (command-line code agent)"><span class="ri">⌨️</span><span class="rl" data-i18n="rail.terminal">Terminal</span></button>
-        <button class="railtab" data-mode="code" data-i18n-title="rail.codeTitle" title="AI code workshop (preview, Expo Go…)"><span class="ri">&lt;/&gt;</span><span class="rl" data-i18n="rail.code">Code</span></button>
+        <button class="railtab" data-mode="code" data-i18n-title="rail.codeTitle" title="AI code workshop (preview, terminal, Expo Go…)"><span class="ri">&lt;/&gt;</span><span class="rl" data-i18n="rail.code">Code</span></button>
       </nav>
 
       <div id="workArea">
@@ -90,27 +89,6 @@
       </div>
     </main>
 
-    <!-- Dedicated Terminal workspace (OpenClaude): a real terminal-style pane that
-         fills the sidebar, boots a `claude` session and keeps history locally. -->
-    <section id="terminalView" class="terminal hidden">
-      <div class="term-head">
-        <span class="term-dot r"></span><span class="term-dot y"></span><span class="term-dot g"></span>
-        <span class="term-title">OpenClaude — terminal</span>
-        <div class="combo term-combo" id="termModelWrap">
-          <input id="termModelInput" class="combo-input" type="text" autocomplete="off" spellcheck="false" data-i18n-ph="model.searchPh" placeholder="Search a model…" />
-        </div>
-        <button id="termFilterBtn" class="term-btn" data-i18n-title="filter.title" title="Filter models"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg></button>
-        <button id="termClear" class="term-btn" data-i18n="term.clear" data-i18n-title="term.clearTitle" title="Clear the terminal">clear</button>
-      </div>
-      <div id="termLog" class="term-log" aria-live="polite"></div>
-      <div class="term-inputline">
-        <span class="term-prompt">claude&gt;</span>
-        <textarea id="termInput" rows="1" class="term-input" spellcheck="false"
-          data-i18n-ph="term.inputPh"
-          placeholder="describe a coding task…  ('help', 'clear', ↑/↓ history)"></textarea>
-      </div>
-      <div id="termModelMenu" class="combo-menu hidden"></div>
-    </section>
 
     <!-- Code workspace: a launcher for Program Generator, the full AI app builder
          (a self-hosted Bolt.diy instance). It uses WebContainers (needs COOP/COEP
@@ -161,7 +139,7 @@
           <input type="checkbox" id="webSearch" /><span>🌐 Web</span>
         </label>
         <label class="chip" data-i18n-title="chip.pageTitle" title="The AI sees the current page">
-          <input type="checkbox" id="pageCtx" /><span>👁 Page</span>
+          <input type="checkbox" id="pageCtx" /><span>🔍 Page</span>
         </label>
       </div>
 

@@ -178,65 +178,88 @@
   }
 
   // --- Element picker ------------------------------------------------------
-  // Lets the user point at any element on the page (a table, an image, a menu…)
-  // and "ask the AI about it". On hover we outline the element; on click we return
-  // its text + bounding rect (the sidebar then crops a screenshot of it). Esc cancels.
+  // Lets the user point at any element on the page (a table, an image, a menu…) and
+  // "ask the AI about it". Hover outlines the element; a single click captures it;
+  // holding the left button and dragging across several elements selects them all
+  // (each captured). Esc, or a pick_cancel message from the sidebar, aborts cleanly.
   let pickResolve = null;
-  let pickOverlay = null;
+  let pickHoverBox = null;
   let pickHover = null;
+  let pickPainting = false;
+  let pickSelected = [];
+  let pickBoxes = [];
+  function mkBox(color, bg, z) {
+    const d = document.createElement("div");
+    Object.assign(d.style, {
+      position: "fixed", zIndex: z, top: 0, left: 0, width: 0, height: 0,
+      border: "2px solid " + color, background: bg, borderRadius: "3px", pointerEvents: "none",
+    });
+    document.documentElement.appendChild(d);
+    return d;
+  }
+  function placeBox(d, r) {
+    Object.assign(d.style, { top: r.top + "px", left: r.left + "px", width: r.width + "px", height: r.height + "px" });
+  }
+  function addSelected(el) {
+    if (!el || pickSelected.includes(el)) return;
+    pickSelected.push(el);
+    const b = mkBox("#8b5cf6", "rgba(139,92,246,.22)", 2147483646);
+    placeBox(b, el.getBoundingClientRect());
+    pickBoxes.push(b);
+  }
   function pickMove(e) {
     const el = document.elementFromPoint(e.clientX, e.clientY);
-    if (!el || el === pickOverlay) return;
-    pickHover = el;
-    const r = el.getBoundingClientRect();
-    Object.assign(pickOverlay.style, {
-      top: r.top + "px", left: r.left + "px", width: r.width + "px", height: r.height + "px",
-    });
+    if (!el) return;
+    if (pickPainting) { addSelected(el); }
+    else { pickHover = el; placeBox(pickHoverBox, el.getBoundingClientRect()); }
   }
-  function pickKey(e) {
-    if (e.key === "Escape") { e.preventDefault(); endPick(null); }
+  function pickDown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    pickPainting = true;
+    if (pickHoverBox) pickHoverBox.style.display = "none";
+    addSelected(pickHover || document.elementFromPoint(e.clientX, e.clientY));
   }
-  function pickClick(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    endPick(pickHover || document.elementFromPoint(e.clientX, e.clientY));
+  function pickUp(e) {
+    if (!pickPainting) return;
+    e.preventDefault(); e.stopPropagation();
+    endPick(false);
   }
+  function pickSwallow(e) { e.preventDefault(); e.stopPropagation(); } // don't trigger page links/buttons
+  function pickKey(e) { if (e.key === "Escape") { e.preventDefault(); endPick(true); } }
   function describeElement(el) {
-    try { el.scrollIntoView({ block: "center", inline: "center" }); } catch (_) {}
     const rect = el.getBoundingClientRect();
     const text = (el.innerText || el.textContent || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 8000);
     let imgSrc = "";
     if (el.tagName === "IMG") imgSrc = el.currentSrc || el.src || "";
-    return {
-      tag: el.tagName.toLowerCase(), text, imgSrc,
-      rect: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
-      dpr: window.devicePixelRatio || 1, url: location.href, title: document.title,
-    };
+    return { tag: el.tagName.toLowerCase(), text, imgSrc, rect: { x: rect.left, y: rect.top, w: rect.width, h: rect.height } };
   }
-  function endPick(el) {
+  function endPick(cancelled) {
     document.removeEventListener("mousemove", pickMove, true);
-    document.removeEventListener("click", pickClick, true);
+    document.removeEventListener("mousedown", pickDown, true);
+    document.removeEventListener("mouseup", pickUp, true);
+    document.removeEventListener("click", pickSwallow, true);
     document.removeEventListener("keydown", pickKey, true);
     document.documentElement.style.cursor = "";
-    if (pickOverlay) { pickOverlay.remove(); pickOverlay = null; }
+    if (pickHoverBox) { pickHoverBox.remove(); pickHoverBox = null; }
+    pickBoxes.forEach((b) => b.remove());
+    const els = pickSelected;
+    pickBoxes = []; pickSelected = []; pickPainting = false;
     const r = pickResolve; pickResolve = null;
-    const out = el ? describeElement(el) : { cancelled: true };
-    r && r(out);
+    if (!r) return;
+    if (cancelled || !els.length) { r({ cancelled: true }); return; }
+    r({ elements: els.slice(0, 8).map(describeElement), dpr: window.devicePixelRatio || 1, url: location.href, title: document.title });
   }
   function startPick() {
-    if (pickResolve) endPick(null); // restart cleanly
+    if (pickResolve) endPick(true); // restart cleanly
     return new Promise((resolve) => {
-      pickResolve = resolve;
-      pickOverlay = document.createElement("div");
-      Object.assign(pickOverlay.style, {
-        position: "fixed", zIndex: 2147483647, top: 0, left: 0, width: 0, height: 0,
-        border: "2px solid #8b5cf6", background: "rgba(139,92,246,.18)", borderRadius: "3px",
-        pointerEvents: "none", boxShadow: "0 0 0 9999px rgba(0,0,0,.06)",
-      });
-      document.documentElement.appendChild(pickOverlay);
+      pickResolve = resolve; pickSelected = []; pickBoxes = []; pickPainting = false; pickHover = null;
+      pickHoverBox = mkBox("#a855f7", "rgba(168,85,247,.14)", 2147483647);
       document.documentElement.style.cursor = "crosshair";
       document.addEventListener("mousemove", pickMove, true);
-      document.addEventListener("click", pickClick, true);
+      document.addEventListener("mousedown", pickDown, true);
+      document.addEventListener("mouseup", pickUp, true);
+      document.addEventListener("click", pickSwallow, true);
       document.addEventListener("keydown", pickKey, true);
     });
   }
@@ -249,6 +272,9 @@
         return Promise.resolve(readSelection());
       case "pick_element":
         return startPick();
+      case "pick_cancel":
+        if (pickResolve) endPick(true);
+        return Promise.resolve({ ok: true });
       case "find_elements":
         return Promise.resolve(findElements(msg.query));
       case "click_element":
@@ -312,6 +338,17 @@
   };
   let WM = WEBMAIL_I18N.en;
 
+  const IS_GMAIL = location.hostname.endsWith("mail.google.com");
+  function onReplyClick(btn) {
+    const thread = readThread();
+    browser.runtime.sendMessage({ type: "draft_reply", thread, url: location.href });
+    const prev = btn.textContent;
+    btn.textContent = WM.opening;
+    setTimeout(() => (btn.textContent = prev), 2500);
+  }
+
+  // Floating fallback button (used on non-Gmail webmails, or if the inline slot
+  // can't be found on Gmail).
   function injectWebmailButton() {
     if (document.getElementById("__ai_reply_fab")) return;
     const btn = document.createElement("button");
@@ -326,27 +363,69 @@
       color: "#fff", font: "600 13px system-ui, sans-serif",
       boxShadow: "0 4px 14px rgba(124,58,237,.35)", cursor: "pointer",
     });
-    btn.addEventListener("click", () => {
-      const thread = readThread();
-      // Hand the thread to the sidebar via a pending action; it drafts a reply.
-      browser.runtime.sendMessage({ type: "draft_reply", thread, url: location.href });
-      btn.textContent = WM.opening;
-      setTimeout(() => (btn.textContent = WM.reply), 2500);
-    });
+    btn.addEventListener("click", () => onReplyClick(btn));
     document.documentElement.appendChild(btn);
+  }
+
+  // Gmail: place the button INLINE in the bottom action row of an open email, right
+  // after Reply / Forward / the emoji-reaction buttons (instead of a corner FAB).
+  function findGmailActionRow() {
+    const wants = ["reply", "reply all", "forward", "répondre", "repondre", "répondre à tous", "transférer", "transferer"];
+    for (const b of document.querySelectorAll('[role="button"]')) {
+      const label = ((b.innerText || "") + " " + (b.getAttribute("aria-label") || "") + " " + (b.getAttribute("data-tooltip") || "")).trim().toLowerCase();
+      if (!label) continue;
+      if (wants.some((w) => label === w || label.startsWith(w))) {
+        const row = b.parentElement;
+        // Sanity: the bottom action row groups several buttons together.
+        if (row && row.querySelectorAll('[role="button"]').length >= 2 && row.offsetParent) return row;
+      }
+    }
+    return null;
+  }
+  function injectGmailInline() {
+    const existing = document.getElementById("__ai_reply_inline");
+    if (existing && document.body.contains(existing) && existing.offsetParent) return true;
+    const row = findGmailActionRow();
+    if (!row) return false;
+    const btn = document.createElement("button");
+    btn.id = "__ai_reply_inline";
+    btn.type = "button";
+    btn.textContent = WM.reply;
+    btn.setAttribute("aria-label", WM.aria);
+    Object.assign(btn.style, {
+      marginLeft: "8px", padding: "8px 14px", borderRadius: "18px", border: "0",
+      background: "linear-gradient(135deg,#6366f1,#8b5cf6 55%,#a855f7)", color: "#fff",
+      font: "500 14px 'Google Sans', Roboto, system-ui, sans-serif", cursor: "pointer",
+      verticalAlign: "middle", lineHeight: "1",
+    });
+    btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); onReplyClick(btn); });
+    row.appendChild(btn);
+    const fab = document.getElementById("__ai_reply_fab"); // drop the corner fallback
+    if (fab) fab.remove();
+    return true;
+  }
+  let gmailObserver = null;
+  function setupGmail() {
+    injectGmailInline();
+    if (gmailObserver) return;
+    gmailObserver = new MutationObserver(() => {
+      clearTimeout(gmailObserver._t);
+      gmailObserver._t = setTimeout(injectGmailInline, 350);
+    });
+    gmailObserver.observe(document.body, { childList: true, subtree: true });
+    // If we never find the inline slot, fall back to the corner button.
+    setTimeout(() => { if (!document.getElementById("__ai_reply_inline")) injectWebmailButton(); }, 4000);
   }
 
   function maybeSetupWebmail() {
     if (!isWebmail()) return;
-    try {
-      browser.storage.local.get(["webmailAssist", "uiLang"]).then((s) => {
-        if (s.webmailAssist === false) return;
-        WM = WEBMAIL_I18N[s.uiLang === "fr" ? "fr" : "en"];
-        injectWebmailButton();
-      });
-    } catch (_) {
-      injectWebmailButton();
-    }
+    const go = (s) => {
+      if (s && s.webmailAssist === false) return;
+      WM = WEBMAIL_I18N[(s && s.uiLang) === "fr" ? "fr" : "en"];
+      if (IS_GMAIL) setupGmail();
+      else injectWebmailButton();
+    };
+    try { browser.storage.local.get(["webmailAssist", "uiLang"]).then(go); } catch (_) { go({}); }
   }
   maybeSetupWebmail();
 })();

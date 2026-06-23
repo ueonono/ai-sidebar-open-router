@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Sidebar — Privacy Policy</title>
+  <style>
+    :root { --bg:#0f1117; --panel:#161922; --border:#272c3b; --text:#e7e8ef; --muted:#9aa0b4; --accent:#8b5cf6;
+      --grad:linear-gradient(135deg,#6366f1,#8b5cf6 55%,#a855f7); }
+    * { box-sizing:border-box; }
+    body { font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text);
+      margin:0; padding:40px 18px; }
+    main { max-width:760px; margin:0 auto; }
+    h1 { font-size:28px; margin:0 0 4px; background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    h2 { font-size:19px; margin:30px 0 8px; }
+    .muted { color:var(--muted); }
+    a { color:#b9a7ff; }
+    code { background:var(--panel); border:1px solid var(--border); border-radius:5px; padding:1px 5px; font-size:14px; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin:14px 0; }
+    ul { padding-left:22px; }
+    li { margin:5px 0; }
+    .tldr { border-left:3px solid var(--accent); padding-left:14px; }
+    footer { color:var(--muted); font-size:13.5px; margin-top:36px; border-top:1px solid var(--border); padding-top:14px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>AI Sidebar — Privacy Policy</h1>
+  <p class="muted">Last updated: 23 June 2026</p>
+
+  <div class="card tldr">
+    <strong>In short:</strong> AI Sidebar is <strong>100% BYOK</strong> (“bring your own key”). It has
+    <strong>no servers of its own</strong>, performs <strong>no analytics or tracking</strong>, and
+    <strong>collects, stores and sells nothing</strong>. Everything stays on your device, except the
+    requests you explicitly make, which go <strong>directly</strong> from your browser to the AI
+    provider <em>you</em> chose, using <em>your</em> key.
+  </div>
+
+  <h2>1. Who operates this extension</h2>
+  <p>AI Sidebar is an open-source browser extension developed by Florian Martins. The full source code is
+    available at
+    <a href="https://github.com/FlorianMartins/firefox-ai-sidebar">github.com/FlorianMartins/firefox-ai-sidebar</a>.</p>
+
+  <h2>2. Data the extension handles (all stored locally)</h2>
+  <p>The following is kept <strong>only</strong> in your browser via <code>storage.local</code>. It is
+    <strong>never</strong> synced to any account or sent to us — we have no server to send it to:</p>
+  <ul>
+    <li><strong>API keys / credentials</strong> you enter (or obtain via OpenRouter sign-in).</li>
+    <li><strong>Your settings</strong> (chosen provider/model, language, layout, toggles, etc.).</li>
+    <li><strong>Conversation history</strong>, if you enable saving it (off-by-default options exist; you can clear it any time).</li>
+  </ul>
+
+  <h2>3. Page, tab and element content</h2>
+  <p>When <em>you</em> ask for it — by enabling the “Page” context, picking tabs, using the element
+    picker, the translate/summarize actions, or the webmail “Reply with AI” button — the extension reads
+    text (and, for the element picker, a screenshot of the element you click) from the current page so the
+    AI can act on it. This content is included in the request to your chosen AI provider <strong>only for
+    that request</strong>. It is not stored by us and not sent anywhere else. The extension does not read
+    or monitor pages in the background for any other purpose.</p>
+
+  <h2>4. Where your data goes</h2>
+  <p>The only network requests the extension makes are to the <strong>AI provider endpoint you configured</strong>
+    (e.g. Anthropic, OpenAI, Google Gemini, Mistral, Groq, DeepSeek, xAI, Perplexity, OpenRouter, or a local
+    server such as Ollama / LM Studio), authenticated with <strong>your</strong> key. Those providers are
+    independent third parties and process your prompts under <strong>their own</strong> privacy policies and
+    terms. Please review the policy of whichever provider(s) you connect. We are not a party to that
+    processing and never receive a copy.</p>
+
+  <h2>5. What we do NOT do</h2>
+  <ul>
+    <li>No analytics, no telemetry, no tracking pixels, no advertising IDs.</li>
+    <li>No remote/operator servers; no remote code execution — all code ships inside the extension.</li>
+    <li>No collection, sale, rental or sharing of your data with anyone.</li>
+    <li>No background reading of your browsing.</li>
+  </ul>
+
+  <h2>6. Permissions and why they are used</h2>
+  <ul>
+    <li><code>storage</code> — save your keys, settings and (optional) history locally.</li>
+    <li><code>tabs</code>, <code>activeTab</code>, <code>scripting</code>, host access (<code>&lt;all_urls&gt;</code>) —
+      read the page/tab/element <em>you</em> point at, and let the optional Agent mode act on the page you ask it to.</li>
+    <li><code>identity</code> — optional one-click OpenRouter sign-in (OAuth).</li>
+    <li><code>contextMenus</code> — right-click actions (translate, summarize, improve…).</li>
+    <li><code>clipboardWrite</code> — copy AI output when you ask.</li>
+    <li><code>sidePanel</code> (Chromium) / <code>sidebar_action</code> (Firefox) — display the sidebar.</li>
+  </ul>
+
+  <h2>7. Microphone / camera</h2>
+  <p>The extension does not access your microphone or camera.</p>
+
+  <h2>8. Children</h2>
+  <p>AI Sidebar is a general-purpose developer/productivity tool and is not directed at children under 13.</p>
+
+  <h2>9. Changes to this policy</h2>
+  <p>If this policy changes, the “Last updated” date above will change and the new version will be published
+    at this URL and in the repository.</p>
+
+  <h2>10. Contact</h2>
+  <p>Questions or requests: open an issue at
+    <a href="https://github.com/FlorianMartins/firefox-ai-sidebar/issues">github.com/FlorianMartins/firefox-ai-sidebar/issues</a>,
+    or email <a href="mailto:florian.martins@gmail.com">florian.martins@gmail.com</a>.</p>
+
+  <footer>AI Sidebar — open-source, 100% BYOK. This policy describes the extension's behavior; connected AI
+    providers have their own policies.</footer>
+</main>
+</body>
+</html>

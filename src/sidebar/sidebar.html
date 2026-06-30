@@ -142,6 +142,28 @@
           <div id="codeSnippets" class="code-snippets-list"></div>
         </div>
 
+        <!-- Performance Tips (collapsible) -->
+        <div class="code-section code-perf-tips">
+          <details class="code-details">
+            <summary class="code-details-summary">
+              <span class="code-section-title">⚡ <span data-i18n="code.perfTips">Performance Tips</span></span>
+            </summary>
+            <div class="code-details-content">
+              <ul class="code-perf-list">
+                <li data-i18n="code.perfTip1">Close unused tabs to free memory</li>
+                <li data-i18n="code.perfTip2">Use pnpm for faster installs</li>
+                <li data-i18n="code.perfTip3">Include package-lock.json for cached deps</li>
+                <li data-i18n="code.perfTip4">Close other StackBlitz projects</li>
+              </ul>
+              <div class="code-warnings">
+                <strong data-i18n="code.warnings">Common Issues</strong>
+                <p class="code-warning" data-i18n="code.warnUnresponsive">Page unresponsive? The AI is processing large files. Wait or refresh the builder tab.</p>
+                <p class="code-warning" data-i18n="code.warnMemory">Out of memory? Close other WebContainer tabs and refresh.</p>
+              </div>
+            </div>
+          </details>
+        </div>
+
         <!-- External Builder Launcher -->
         <div class="code-section code-launch-section">
           <div class="code-launch-info">
@@ -151,8 +173,14 @@
               live preview, terminal, and Expo Go. Your OpenRouter key is passed automatically.
             </p>
           </div>
-          <button id="openCodeApp" class="btn-grad code-launch-btn" data-i18n="code.open">🚀 Open the workshop in a new tab</button>
+          <div class="code-launch-actions">
+            <button id="openCodeApp" class="btn-grad code-launch-btn" data-i18n="code.open">🚀 Open the workshop</button>
+            <button id="newCodeProject" class="code-btn-sm" data-i18n="code.newProject">+ New</button>
+          </div>
           <p class="cl-url muted" id="codeAppUrlLabel"></p>
+          <div class="code-quick-actions">
+            <button id="restartBuilder" class="code-btn-sm code-action-btn" data-i18n-title="code.restartBuilder" title="Restart the builder (clear session)">🔄 Restart</button>
+          </div>
         </div>
       </div>
 

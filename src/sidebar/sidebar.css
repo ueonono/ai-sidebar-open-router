@@ -535,7 +535,11 @@ body.mode-code #confirmBar { display: none !important; }
   border-color: rgba(139, 92, 246, 0.3);
 }
 .code-launch-info { margin-bottom: 10px; }
-.code-launch-btn { width: 100%; }
+.code-launch-info p { margin: 6px 0 0 0; font-size: 12px; line-height: 1.45; }
+.code-launch-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.code-launch-btn { flex: 1; min-width: 0; }
+.code-quick-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.code-action-btn { font-size: 11px; padding: 4px 8px; }
 
 /* Modal for snippets */
 .code-modal {
@@ -579,6 +583,34 @@ body.mode-code #confirmBar { display: none !important; }
 
 /* Empty state for sections */
 .code-section-empty { padding: 12px; text-align: center; color: var(--muted); font-size: 12px; }
+
+/* Performance tips collapsible section */
+.code-perf-tips { background: var(--card); border-radius: 8px; }
+.code-details { margin: 0; }
+.code-details-summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center;
+  padding: 10px 12px; border-radius: 8px; transition: 0.15s;
+}
+.code-details-summary::-webkit-details-marker { display: none; }
+.code-details-summary:hover { background: var(--grad-soft); }
+.code-details-summary::after {
+  content: "▸"; margin-left: auto; color: var(--muted); font-size: 10px;
+  transition: transform 0.2s;
+}
+.code-details[open] .code-details-summary::after { transform: rotate(90deg); }
+.code-details-content { padding: 0 12px 12px 12px; }
+.code-perf-list {
+  margin: 0; padding: 0 0 0 18px; font-size: 12px; color: var(--muted);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.code-perf-list li::marker { color: var(--accent); }
+.code-warnings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.code-warnings strong { font-size: 12px; color: var(--text); display: block; margin-bottom: 6px; }
+.code-warning {
+  font-size: 11.5px; color: var(--muted); margin: 4px 0;
+  padding: 6px 8px; background: rgba(255,200,50,0.08); border-radius: 4px;
+  border-left: 2px solid #ffc832;
+}
 
 .terminal {
   flex: 1; min-height: 0; display: flex; flex-direction: column;

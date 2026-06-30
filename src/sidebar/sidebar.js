@@ -84,6 +84,8 @@ const els = {
   snippetCode: $("snippetCode"),
   saveSnippet: $("saveSnippet"),
   cancelSnippet: $("cancelSnippet"),
+  newCodeProject: $("newCodeProject"),
+  restartBuilder: $("restartBuilder"),
   chatControls: $("chatControls"),
   translateControls: $("translateControls"),
   improveControls: $("improveControls"),
@@ -1129,6 +1131,33 @@ async function openCodeApp() {
   try { await browser.tabs.create({ url }); } catch (_) { window.open(url, "_blank", "noopener"); }
 }
 
+// Open a fresh/new project in the builder
+async function openNewProject() {
+  if (!(settings.codeAppUrl || "").trim()) return browser.runtime.openOptionsPage();
+  const baseUrl = settings.codeAppUrl.trim();
+  // Open with a fresh parameter to signal a new project
+  const newUrl = baseUrl + (baseUrl.includes("#") ? "&" : "#") + "new=" + Date.now();
+  const fullUrl = newUrl + (settings.keys?.openrouter ? "&sk=" + encodeURIComponent(settings.keys.openrouter) : "");
+  try { await browser.tabs.create({ url: fullUrl }); } catch (_) { window.open(fullUrl, "_blank", "noopener"); }
+}
+
+// Restart the builder - opens a fresh tab (helps when stuck)
+async function restartBuilder() {
+  if (!(settings.codeAppUrl || "").trim()) return;
+  // Find existing builder tabs and close them, then open a fresh one
+  try {
+    const tabs = await browser.tabs.query({});
+    const builderTabs = tabs.filter((t) => t.url && t.url.startsWith(settings.codeAppUrl));
+    for (const t of builderTabs) {
+      try { await browser.tabs.remove(t.id); } catch (_) {}
+    }
+    // Small delay then open fresh
+    setTimeout(() => openCodeApp(), 100);
+  } catch (_) {
+    openCodeApp();
+  }
+}
+
 // ----- Code Workspace Enhanced Features ---------------------------------------
 // Project templates - rendered from storage defaults
 function renderCodeTemplates() {
@@ -1652,6 +1681,8 @@ function wire() {
   if (els.saveSnippet) els.saveSnippet.addEventListener("click", saveSnippetFn);
   if (els.cancelSnippet) els.cancelSnippet.addEventListener("click", closeSnippetModalFn);
   if (els.clearRecentProjects) els.clearRecentProjects.addEventListener("click", clearRecentProjectsList);
+  if (els.newCodeProject) els.newCodeProject.addEventListener("click", openNewProject);
+  if (els.restartBuilder) els.restartBuilder.addEventListener("click", restartBuilder);
 
   // PDF workspace controls
   els.pdfLoad.addEventListener("click", () => els.pdfFile.click());

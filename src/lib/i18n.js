@@ -189,6 +189,43 @@ const EN = {
   "send.title": "Send",
   "stop.title": "Stop",
 
+  // ----- Help panel ----------------------------------------------------------
+  "help.title": "Help & Shortcuts",
+  "help.shortcuts": "Keyboard Shortcuts",
+  "help.send": "Send message",
+  "help.toggleSidebar": "Toggle sidebar",
+  "help.modelPicker": "Open model picker",
+  "help.close": "Close panel / Stop",
+  "help.switchTab": "Switch workspace",
+  "help.clearChat": "Clear chat",
+  "help.tips": "Quick Tips",
+  "help.tip1": "Attach files by clicking the + button or dragging",
+  "help.tip2": "Use /image to generate images (in Image mode)",
+  "help.tip3": "Agent mode can browse and act in pages for you",
+  "help.tip4": "Click a model name to filter by price (free, low-cost...)",
+  "help.artifacts": "Artifacts",
+  "help.artifactDesc": "Code blocks with language tags render as interactive previews. Supported: HTML, React/JSX, SVG, Mermaid diagrams.",
+
+  // ----- Quick prompts (empty state suggestions) ----------------------------
+  "quick.summarize": "Summarize this page",
+  "quick.explain": "Explain selection",
+  "quick.translate": "Translate to French",
+  "quick.reply": "Draft a reply",
+
+  // ----- History -------------------------------------------------------------
+  "history.searchPh": "Search conversations...",
+  "history.noResults": "No matching conversations",
+
+  // ----- Message actions ------------------------------------------------------
+  "msg.copy": "Copy",
+  "msg.copied": "Copied!",
+  "msg.regenerate": "Regenerate",
+  "msg.edit": "Edit",
+  "msg.thinking": "Thinking...",
+
+  // ----- Composer ------------------------------------------------------------
+  "composer.tokens": "~{n} tokens",
+
   // ----- Rail (workspace switcher) ------------------------------------------
   "rail.chat": "Chat",
   "rail.agent": "Agent",
@@ -599,6 +636,43 @@ const FR = {
   "composer.ph": "Écrivez un message…",
   "send.title": "Envoyer",
   "stop.title": "Stop",
+
+  // ----- Help panel (French) -------------------------------------------------
+  "help.title": "Aide & Raccourcis",
+  "help.shortcuts": "Raccourcis clavier",
+  "help.send": "Envoyer le message",
+  "help.toggleSidebar": "Ouvrir/fermer la sidebar",
+  "help.modelPicker": "Ouvrir le sélecteur de modèle",
+  "help.close": "Fermer le panneau / Arrêter",
+  "help.switchTab": "Changer d'espace",
+  "help.clearChat": "Effacer le chat",
+  "help.tips": "Conseils rapides",
+  "help.tip1": "Joignez des fichiers avec le bouton + ou en glissant",
+  "help.tip2": "Utilisez /image pour générer des images (mode Image)",
+  "help.tip3": "Le mode Agent peut naviguer et agir dans les pages",
+  "help.tip4": "Cliquez sur un modèle pour filtrer par prix (gratuit...)",
+  "help.artifacts": "Artefacts",
+  "help.artifactDesc": "Les blocs de code avec langage s'affichent en aperçu interactif. Supportés : HTML, React/JSX, SVG, diagrammes Mermaid.",
+
+  // Quick prompts (French)
+  "quick.summarize": "Résumer cette page",
+  "quick.explain": "Expliquer la sélection",
+  "quick.translate": "Traduire en français",
+  "quick.reply": "Rédiger une réponse",
+
+  // History (French)
+  "history.searchPh": "Rechercher des conversations...",
+  "history.noResults": "Aucune conversation correspondante",
+
+  // Message actions (French)
+  "msg.copy": "Copier",
+  "msg.copied": "Copié !",
+  "msg.regenerate": "Regénérer",
+  "msg.edit": "Éditer",
+  "msg.thinking": "Réflexion...",
+
+  // Composer (French)
+  "composer.tokens": "~{n} tokens",
 
   "rail.chat": "Chat",
   "rail.agent": "Agent",

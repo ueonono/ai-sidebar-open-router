@@ -16,6 +16,7 @@
       <div class="row">
         <button id="historyBtn" class="icon icon-accent" data-i18n-title="history.title" title="History (local)"><svg class="glyph-svg" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="url(#histg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><defs><linearGradient id="histg" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6366f1"/><stop offset="0.55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><path d="M3 3.5v5h5"/><path d="M3.5 13a9 9 0 1 0 2.4-6.4L3 8.5"/><path d="M12 7.5v5l3.5 2"/></svg></button>
         <button id="newChat" class="icon icon-accent" data-i18n-title="newChat.title" title="New conversation"><svg class="glyph-svg" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="url(#histg)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="helpBtn" class="icon icon-accent" data-i18n-title="help.title" title="Help & shortcuts">?</button>
         <button id="expandTab" class="icon icon-accent" data-i18n-title="expand.title" title="Open in a full-screen tab"><svg class="glyph-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="url(#histg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M21 3l-8 8"/><path d="M9 21H3v-6"/><path d="M3 21l8-8"/></svg></button>
         <button id="openOptions" class="icon icon-accent" data-i18n-title="settings.title" title="Settings"><svg class="glyph-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="url(#histg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15z"/></svg></button>
       </div>
@@ -30,7 +31,44 @@
           <button id="closeHistory" class="icon" data-i18n-title="close.title" title="Close">✕</button>
         </div>
       </div>
+      <div class="history-search">
+        <input type="text" id="historySearch" placeholder="Search conversations..." data-i18n-ph="history.searchPh" />
+      </div>
       <ul id="historyList" class="historylist"></ul>
+    </div>
+
+    <!-- Help panel -->
+    <div id="helpPanel" class="panel hidden">
+      <div class="panel-head">
+        <span>❓ <span data-i18n="help.title">Help & Shortcuts</span></span>
+        <button id="closeHelp" class="icon" data-i18n-title="close.title" title="Close">✕</button>
+      </div>
+      <div class="help-content">
+        <div class="help-section">
+          <h4 data-i18n="help.shortcuts">Keyboard Shortcuts</h4>
+          <div class="shortcut-list">
+            <div class="shortcut-row"><kbd>Ctrl+Enter</kbd> <span data-i18n="help.send">Send message</span></div>
+            <div class="shortcut-row"><kbd>Ctrl+Shift+Y</kbd> <span data-i18n="help.toggleSidebar">Toggle sidebar</span></div>
+            <div class="shortcut-row"><kbd>Ctrl+K</kbd> <span data-i18n="help.modelPicker">Open model picker</span></div>
+            <div class="shortcut-row"><kbd>Esc</kbd> <span data-i18n="help.close">Close panel / Stop</span></div>
+            <div class="shortcut-row"><kbd>Ctrl+1-7</kbd> <span data-i18n="help.switchTab">Switch workspace</span></div>
+            <div class="shortcut-row"><kbd>Ctrl+L</kbd> <span data-i18n="help.clearChat">Clear chat</span></div>
+          </div>
+        </div>
+        <div class="help-section">
+          <h4 data-i18n="help.tips">Quick Tips</h4>
+          <ul class="help-tips">
+            <li data-i18n="help.tip1">Attach files by clicking the + button or dragging</li>
+            <li data-i18n="help.tip2">Use /image to generate images (in Image mode)</li>
+            <li data-i18n="help.tip3">Agent mode can browse and act in pages for you</li>
+            <li data-i18n="help.tip4">Click a model name to filter by price (free, low-cost...)</li>
+          </ul>
+        </div>
+        <div class="help-section">
+          <h4 data-i18n="help.artifacts">Artifacts</h4>
+          <p class="help-artifact-desc" data-i18n="help.artifactDesc">Code blocks with language tags render as interactive previews. Supported: HTML, React/JSX, SVG, Mermaid diagrams.</p>
+        </div>
+      </div>
     </div>
 
     <!-- Page chip + multi-tab picker -->
@@ -84,8 +122,28 @@
             free) or a <b>local</b> model (Ollama / LM Studio).
           </p>
         </div>
-        <!-- Shown when a provider IS connected (friendly greeting) -->
-        <p id="emptyGreeting" class="empty-title hidden" data-i18n="greeting">How can I help you?</p>
+        <!-- Shown when a provider IS connected (friendly greeting + quick prompts) -->
+        <div id="emptyGreeting" class="hidden">
+          <p class="empty-title" data-i18n="greeting">How can I help you?</p>
+          <div class="quick-prompts">
+            <button class="quick-prompt" data-prompt="Summarize the current page in 3 bullet points">
+              <span class="qp-icon">📝</span>
+              <span data-i18n="quick.summarize">Summarize this page</span>
+            </button>
+            <button class="quick-prompt" data-prompt="Explain the selected text in simple terms">
+              <span class="qp-icon">💡</span>
+              <span data-i18n="quick.explain">Explain selection</span>
+            </button>
+            <button class="quick-prompt" data-prompt="Translate to French">
+              <span class="qp-icon">🌐</span>
+              <span data-i18n="quick.translate">Translate to French</span>
+            </button>
+            <button class="quick-prompt" data-prompt="Write a short email reply to this">
+              <span class="qp-icon">✉️</span>
+              <span data-i18n="quick.reply">Draft a reply</span>
+            </button>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -328,6 +386,9 @@
         <textarea id="input" rows="1" data-i18n-ph="composer.ph" placeholder="Write a message…"></textarea>
         <button id="send" class="btn-grad send" data-i18n-title="send.title" title="Send">➤</button>
         <button id="stop" class="hidden send" data-i18n-title="stop.title" title="Stop">■</button>
+      </div>
+      <div class="composer-footer">
+        <span id="tokenCount" class="token-count muted hidden"></span>
       </div>
     </footer>
 

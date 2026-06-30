@@ -46,8 +46,12 @@ const els = {
   openOptions: $("openOptions"),
   historyPanel: $("historyPanel"),
   historyList: $("historyList"),
+  historySearch: $("historySearch"),
   clearHistory: $("clearHistory"),
   closeHistory: $("closeHistory"),
+  helpBtn: $("helpBtn"),
+  helpPanel: $("helpPanel"),
+  closeHelp: $("closeHelp"),
   pageBar: $("pageBar"),
   pageTitle: $("pageTitle"),
   pickEl: $("pickEl"),
@@ -63,6 +67,7 @@ const els = {
   input: $("input"),
   send: $("send"),
   stop: $("stop"),
+  tokenCount: $("tokenCount"),
   rail: $("rail"),
   codeView: $("codeView"),
   openCodeApp: $("openCodeApp"),
@@ -1499,16 +1504,22 @@ function timeAgo(ts) {
   if (s < 86400) return t("time.hour", { n: Math.floor(s / 3600) });
   return t("time.day", { n: Math.floor(s / 86400) });
 }
-async function renderHistoryList() {
+async function renderHistoryList(searchQuery) {
   // Each workspace shows ONLY its own saved conversations (legacy entries with no
-  // mode are treated as Chat).
+  // mode are treated as Chat). Optional searchQuery filters by title.
   const all = await listConversations();
-  const list = all.filter((c) => (c.mode || "chat") === mode);
+  let list = all.filter((c) => (c.mode || "chat") === mode);
+  if (searchQuery) {
+    list = list.filter((c) => {
+      const title = (c.title || "").toLowerCase();
+      return title.includes(searchQuery.toLowerCase());
+    });
+  }
   els.historyList.innerHTML = "";
   if (!list.length) {
     const li = document.createElement("li");
     li.className = "muted";
-    li.textContent = t("history.empty");
+    li.textContent = searchQuery ? (t("history.noResults") || "No matching conversations") : t("history.empty");
     els.historyList.appendChild(li);
     return;
   }
@@ -1722,6 +1733,33 @@ function wire() {
   });
   els.closeHistory.addEventListener("click", () => els.historyPanel.classList.add("hidden"));
 
+  // Help panel
+  if (els.helpBtn) els.helpBtn.addEventListener("click", () => els.helpPanel.classList.toggle("hidden"));
+  if (els.closeHelp) els.closeHelp.addEventListener("click", () => els.helpPanel.classList.add("hidden"));
+
+  // History search
+  if (els.historySearch) {
+    els.historySearch.addEventListener("input", (e) => {
+      const query = (e.target.value || "").toLowerCase().trim();
+      renderHistoryList(query);
+    });
+  }
+
+  // Quick prompts (example suggestions when connected)
+  document.querySelectorAll(".quick-prompt").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const prompt = btn.dataset.prompt;
+      if (prompt) {
+        els.input.value = prompt;
+        els.input.focus();
+        autoGrow();
+      }
+    });
+  });
+
+  // Global keyboard shortcuts
+  document.addEventListener("keydown", handleKeyboardShortcuts);
+
   // Clicking ANYWHERE on the page bar expands/collapses the tabs panel — except the
   // 🖱 pick button, which launches element capture instead.
   els.pageBar.addEventListener("click", async (e) => {
@@ -1767,11 +1805,109 @@ function wire() {
   });
 }
 
+// ----- Keyboard shortcuts ----------------------------------------------------
+function handleKeyboardShortcuts(e) {
+  // Ctrl+Enter or Cmd+Enter to send
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    if (!els.stop.classList.contains("hidden")) return; // streaming
+    onSend();
+    return;
+  }
+
+  // Ctrl+K: open model picker
+  if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+    e.preventDefault();
+    els.modelInput.focus();
+    els.modelInput.select();
+    return;
+  }
+
+  // Ctrl+L: clear chat / new conversation
+  if ((e.ctrlKey || e.metaKey) && e.key === "l") {
+    e.preventDefault();
+    newChat();
+    return;
+  }
+
+  // Ctrl+1-7: switch workspace tabs
+  if ((e.ctrlKey || e.metaKey) && /^[1-7]$/.test(e.key)) {
+    e.preventDefault();
+    const modes = ["chat", "agent", "translate", "improve", "image", "pdf", "code"];
+    const idx = parseInt(e.key) - 1;
+    if (modes[idx]) setMode(modes[idx]);
+    return;
+  }
+
+  // Escape: close panels or stop streaming
+  if (e.key === "Escape") {
+    // Close open panels first
+    if (!els.historyPanel.classList.contains("hidden")) {
+      els.historyPanel.classList.add("hidden");
+      return;
+    }
+    if (!els.helpPanel?.classList.contains("hidden")) {
+      els.helpPanel.classList.add("hidden");
+      return;
+    }
+    if (!els.tabsPanel.classList.contains("hidden")) {
+      els.tabsPanel.classList.add("hidden");
+      return;
+    }
+    if (!els.modelFilterPanel.classList.contains("hidden")) {
+      els.modelFilterPanel.classList.add("hidden");
+      return;
+    }
+    // Stop streaming if active
+    if (abortController) {
+      abortController.abort();
+      return;
+    }
+    return;
+  }
+}
+
+// Copy message to clipboard
+function copyMessageText(msgEl) {
+  const text = msgEl.textContent || "";
+  navigator.clipboard.writeText(text).then(() => {
+    // Show brief "Copied!" feedback
+    const copyBtn = msgEl.querySelector(".msg-action-btn");
+    if (copyBtn) {
+      const original = copyBtn.textContent;
+      copyBtn.textContent = t("msg.copied") || "Copied!";
+      setTimeout(() => { copyBtn.textContent = original; }, 1500);
+    }
+  }).catch(() => {});
+}
+
 function autoGrow() {
   els.input.style.height = "auto";
   els.input.style.height = Math.min(els.input.scrollHeight, 150) + "px";
+  updateTokenCount();
 }
 function resetComposerHeight() { els.input.style.height = "auto"; }
+
+// Simple token estimation (rough: ~4 chars per token for most languages)
+function estimateTokens(text) {
+  if (!text) return 0;
+  // Rough heuristic: count words * 1.3 + special chars / 4
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const chars = text.length;
+  return Math.round(words * 1.3 + chars / 6);
+}
+
+function updateTokenCount() {
+  if (!els.tokenCount) return;
+  const text = els.input.value || "";
+  const tokens = estimateTokens(text);
+  if (tokens > 0) {
+    els.tokenCount.textContent = t("composer.tokens", { n: tokens }) || `~${tokens} tokens`;
+    els.tokenCount.classList.remove("hidden");
+  } else {
+    els.tokenCount.classList.add("hidden");
+  }
+}
 
 // ----- Message rendering ----------------------------------------------------
 function addMessage(role, text) {
@@ -1779,6 +1915,23 @@ function addMessage(role, text) {
   const div = document.createElement("div");
   div.className = "msg " + role;
   div.textContent = text || "";
+
+  // Add copy button for user and assistant messages
+  if (role === "user" || role === "assistant") {
+    const actions = document.createElement("div");
+    actions.className = "msg-actions";
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "msg-action-btn";
+    copyBtn.textContent = "📋";
+    copyBtn.title = t("msg.copy") || "Copy";
+    copyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyMessageText(div);
+    });
+    actions.appendChild(copyBtn);
+    div.appendChild(actions);
+  }
+
   els.messages.appendChild(div);
   els.messages.scrollTop = els.messages.scrollHeight;
   return div;
@@ -1816,7 +1969,7 @@ function addThinkBlock() {
 // Streaming sink: owns one assistant card (+ optional model badge) and its
 // thinking block. Used for a normal turn and for each compare run.
 function makeSink(badgeLabel, showThink = true) {
-  let el = null, contentEl = null, raw = "", think = null;
+  let el = null, contentEl = null, raw = "", think = null, firstChunk = true;
   const ensure = () => {
     if (el) return;
     el = addMessage("assistant", "");
@@ -1831,6 +1984,10 @@ function makeSink(badgeLabel, showThink = true) {
   };
   return {
     onText(delta) {
+      if (firstChunk) {
+        hideStreamingIndicator();
+        firstChunk = false;
+      }
       ensure();
       raw += delta;
       contentEl.innerHTML = renderMarkdown(raw);
@@ -1942,12 +2099,35 @@ function startBusy() {
   els.send.classList.add("hidden");
   els.stop.classList.remove("hidden");
   abortController = new AbortController();
+  // Show streaming indicator
+  showStreamingIndicator();
 }
 function endBusy() {
   els.send.classList.remove("hidden");
   els.stop.classList.add("hidden");
   abortController = null;
   busy = false;
+  // Hide streaming indicator
+  hideStreamingIndicator();
+}
+
+// Streaming indicator
+function showStreamingIndicator() {
+  hideStreamingIndicator(); // remove any existing
+  const indicator = document.createElement("div");
+  indicator.className = "streaming-indicator";
+  indicator.id = "streamingIndicator";
+  indicator.innerHTML = `
+    <span class="streaming-dots"><span></span><span></span><span></span></span>
+    <span>${t("msg.thinking") || "Thinking..."}</span>
+  `;
+  els.messages.appendChild(indicator);
+  els.messages.scrollTop = els.messages.scrollHeight;
+}
+
+function hideStreamingIndicator() {
+  const existing = document.getElementById("streamingIndicator");
+  if (existing) existing.remove();
 }
 
 // ----- Per-message comparison ----------------------------------------------

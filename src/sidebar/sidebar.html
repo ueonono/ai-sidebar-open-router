@@ -90,34 +90,107 @@
     </main>
 
 
-    <!-- Code workspace: a launcher for Program Generator, the full AI app builder
-         (a self-hosted Bolt.diy instance). It uses WebContainers (needs COOP/COEP
-         cross-origin isolation) and can't run inside an extension iframe, so it
-         opens in a dedicated browser tab where live preview, the integrated
-         terminal and Expo Go all keep working. The sidebar hands it its OpenRouter
-         key so both share one and the same service. -->
+    <!-- Code workspace: A full development environment with AI assistance.
+         Features: project templates, quick code generation, integration with
+         external builder (Program Generator / Bolt.diy), code snippets library,
+         and quick AI-assisted code edits. -->
     <section id="codeView" class="codeview hidden">
-      <div class="code-launch">
-        <div class="cl-logo"><img src="../../icons/icon.svg" alt="" /></div>
-        <h2 class="cl-title" data-i18n="code.title">Program Generator</h2>
-        <p class="cl-sub muted" data-i18n-html="code.sub">
-          Build web &amp; mobile apps with AI: code generation, <b>live preview</b>,
-          a built-in terminal and <b>Expo Go</b> to test on mobile. Self-hosted,
-          and it shares this sidebar's OpenRouter key — one and the same service.
-        </p>
-        <button id="openCodeApp" class="btn-grad" data-i18n="code.open">🚀 Open the workshop in a new tab</button>
-        <p class="cl-url muted" id="codeAppUrlLabel"></p>
-        <ul class="cl-feats">
-          <li data-i18n-html="code.feat1">⚡ AI code generation &amp; editing</li>
-          <li data-i18n-html="code.feat3">📱 Expo Go to test on your phone</li>
-          <li data-i18n-html="code.feat2">👁 Live preview (web) in the browser</li>
-          <li data-i18n-html="code.feat4">⌨️ Built-in terminal &amp; file management</li>
-        </ul>
-        <p class="cl-sec muted" data-i18n-html="code.sec">
-          🔒 The workshop opens in an isolated tab. It uses the same providers as
-          the sidebar — your OpenRouter key is handed over for you, so you never
-          re-enter it. URL configurable in <b>Settings → Code workshop</b>.
-        </p>
+      <div class="code-container">
+        <!-- Project Templates Section -->
+        <div class="code-section">
+          <h3 class="code-section-title" data-i18n="code.templates">🚀 Quick Start Templates</h3>
+          <div id="codeTemplates" class="code-templates"></div>
+        </div>
+
+        <!-- Recent Projects Section -->
+        <div class="code-section" id="recentProjectsSection">
+          <div class="code-section-header">
+            <h3 class="code-section-title" data-i18n="code.recent">📁 Recent Projects</h3>
+            <button id="clearRecentProjects" class="code-btn-sm" data-i18n="code.clearRecent">Clear</button>
+          </div>
+          <div id="recentProjects" class="code-recent-list"></div>
+        </div>
+
+        <!-- Code Assistant Section (Chat-like for code questions) -->
+        <div class="code-section">
+          <h3 class="code-section-title" data-i18n="code.assistant">💬 Code Assistant</h3>
+          <div class="code-assistant">
+            <textarea id="codePrompt" placeholder="Describe what you want to build or ask a coding question..." data-i18n-ph="code.promptPh"></textarea>
+            <div class="code-assistant-actions">
+              <select id="codeLanguage">
+                <option value="">Any Language</option>
+                <option value="javascript">JavaScript / TypeScript</option>
+                <option value="python">Python</option>
+                <option value="react">React / JSX</option>
+                <option value="vue">Vue</option>
+                <option value="html">HTML / CSS</option>
+                <option value="node">Node.js</option>
+                <option value="sql">SQL</option>
+                <option value="bash">Shell / Bash</option>
+              </select>
+              <button id="codeGenerate" class="btn-grad" data-i18n="code.generate">✨ Generate</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Code Snippets Library -->
+        <div class="code-section">
+          <div class="code-section-header">
+            <h3 class="code-section-title" data-i18n="code.snippets">📚 Code Snippets</h3>
+            <button id="addSnippet" class="code-btn-sm" data-i18n="code.addSnippet">+ Add</button>
+          </div>
+          <div id="codeSnippets" class="code-snippets-list"></div>
+        </div>
+
+        <!-- External Builder Launcher -->
+        <div class="code-section code-launch-section">
+          <div class="code-launch-info">
+            <h3 class="code-section-title" data-i18n="code.builder">🔧 Advanced Builder</h3>
+            <p class="muted" data-i18n-html="code.builderDesc">
+              Open the full <b>Hivey Code</b> workshop for complete projects with
+              live preview, terminal, and Expo Go. Your OpenRouter key is passed automatically.
+            </p>
+          </div>
+          <button id="openCodeApp" class="btn-grad code-launch-btn" data-i18n="code.open">🚀 Open the workshop in a new tab</button>
+          <p class="cl-url muted" id="codeAppUrlLabel"></p>
+        </div>
+      </div>
+
+      <!-- Snippet Modal -->
+      <div id="snippetModal" class="code-modal hidden">
+        <div class="code-modal-content">
+          <div class="code-modal-header">
+            <h3 data-i18n="code.saveSnippet">Save Code Snippet</h3>
+            <button id="closeSnippetModal" class="code-modal-close">✕</button>
+          </div>
+          <div class="code-modal-body">
+            <label><span data-i18n="code.snippetTitle">Title</span>
+              <input type="text" id="snippetTitle" placeholder="My awesome function" />
+            </label>
+            <label><span data-i18n="code.snippetLang">Language</span>
+              <select id="snippetLang">
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="python">Python</option>
+                <option value="react">React / JSX</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="sql">SQL</option>
+                <option value="bash">Bash</option>
+              </select>
+            </label>
+            <label><span data-i18n="code.snippetTags">Tags (comma separated)</span>
+              <input type="text" id="snippetTags" placeholder="utility, helpers, async" />
+            </label>
+            <label><span data-i18n="code.snippetCode">Code</span>
+              <textarea id="snippetCode" rows="8" placeholder="// Your code here..."></textarea>
+            </label>
+          </div>
+          <div class="code-modal-footer">
+            <button id="saveSnippet" class="btn-grad" data-i18n="code.save">Save</button>
+            <button id="cancelSnippet" class="btn-ghost" data-i18n="code.cancel">Cancel</button>
+          </div>
+        </div>
       </div>
     </section>
 

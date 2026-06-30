@@ -66,6 +66,32 @@ const DEFAULTS = {
   // configurable; leave blank to hide the launcher.
   codeAppUrl: "https://code.hivey.be",
 
+  // ----- Code projects & templates -------------------------------------------
+  // Recent projects opened in the external builder (for quick re-open).
+  // Each entry: { id, title, url, template, openedAt }
+  codeProjects: [],
+  // Saved code snippets library: { id, title, language, code, tags, createdAt }
+  codeSnippets: [],
+  // Project templates for quick starts: { id, name, description, prompt, tech }
+  codeTemplates: [
+    { id: "web-react", name: "React Web App", description: "Modern React app with Vite", tech: "React, Vite, Tailwind", prompt: "Create a modern React web application with Vite and Tailwind CSS" },
+    { id: "web-vue", name: "Vue Web App", description: "Vue 3 app with Vite", tech: "Vue 3, Vite, TypeScript", prompt: "Create a Vue 3 web application with Vite and TypeScript" },
+    { id: "api-express", name: "Express API", description: "REST API with Express.js", tech: "Node.js, Express, TypeScript", prompt: "Create a REST API with Express.js and TypeScript" },
+    { id: "mobile-react-native", name: "React Native App", description: "Mobile app with Expo", tech: "React Native, Expo", prompt: "Create a React Native mobile app with Expo" },
+    { id: "landing", name: "Landing Page", description: "Beautiful landing page", tech: "HTML, CSS, JavaScript", prompt: "Create a beautiful responsive landing page with modern design" },
+    { id: "dashboard", name: "Dashboard", description: "Admin dashboard UI", tech: "React, Tailwind, Recharts", prompt: "Create an admin dashboard with charts and modern UI" },
+    { id: "todo-app", name: "Todo App", description: "Classic todo with a twist", tech: "React, IndexedDB", prompt: "Create a todo application with local storage and nice animations" },
+    { id: "game-2d", name: "2D Game", description: "Browser game with Canvas", tech: "HTML5 Canvas, JavaScript", prompt: "Create a fun 2D browser game with HTML5 Canvas" },
+    { id: "blog", name: "Blog", description: "Static blog generator", tech: "Next.js, MDX", prompt: "Create a blog with Next.js and MDX support" },
+    { id: "portfolio", name: "Portfolio", description: "Developer portfolio", tech: "React, Framer Motion", prompt: "Create a stunning developer portfolio with animations" },
+  ],
+  // Code model preference (separate from chat model - typically need smart models for code)
+  codeModel: "", // "providerId|modelId" - empty = use global model
+  // Editor preferences
+  codeEditorTheme: "dark",
+  codeEditorFontSize: 14,
+  codeEditorTabSize: 2,
+
   // ----- Compare & history ---------------------------------------------------
   compareMode: false, // run the prompt on a second model side-by-side
   compareModel: "", // "providerId|modelId" of the second model

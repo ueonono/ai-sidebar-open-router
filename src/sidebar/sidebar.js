@@ -67,6 +67,23 @@ const els = {
   codeView: $("codeView"),
   openCodeApp: $("openCodeApp"),
   codeAppUrlLabel: $("codeAppUrlLabel"),
+  codeTemplates: $("codeTemplates"),
+  recentProjects: $("recentProjects"),
+  recentProjectsSection: $("recentProjectsSection"),
+  clearRecentProjects: $("clearRecentProjects"),
+  codePrompt: $("codePrompt"),
+  codeLanguage: $("codeLanguage"),
+  codeGenerate: $("codeGenerate"),
+  codeSnippets: $("codeSnippets"),
+  addSnippet: $("addSnippet"),
+  snippetModal: $("snippetModal"),
+  closeSnippetModal: $("closeSnippetModal"),
+  snippetTitle: $("snippetTitle"),
+  snippetLang: $("snippetLang"),
+  snippetTags: $("snippetTags"),
+  snippetCode: $("snippetCode"),
+  saveSnippet: $("saveSnippet"),
+  cancelSnippet: $("cancelSnippet"),
   chatControls: $("chatControls"),
   translateControls: $("translateControls"),
   improveControls: $("improveControls"),
@@ -1074,7 +1091,7 @@ function setMode(next) {
   els.input.placeholder = placeholderFor(next);
   refreshModelUI(); // Image tab lists image models; others list chat models.
   if (CHAT_MODES.includes(next)) restoreMode(next); // re-attach this tab's own message nodes
-  if (next === "code") updateCodeLauncher();
+  if (next === "code") initCodeWorkspace();
   updateEmptyState();
 }
 
@@ -1107,7 +1124,258 @@ function codeAppLaunchUrl() {
 async function openCodeApp() {
   if (!(settings.codeAppUrl || "").trim()) return browser.runtime.openOptionsPage();
   const url = codeAppLaunchUrl();
+  // Track as recent project
+  trackRecentProject(url);
   try { await browser.tabs.create({ url }); } catch (_) { window.open(url, "_blank", "noopener"); }
+}
+
+// ----- Code Workspace Enhanced Features ---------------------------------------
+// Project templates - rendered from storage defaults
+function renderCodeTemplates() {
+  if (!els.codeTemplates) return;
+  els.codeTemplates.innerHTML = "";
+  const templates = settings.codeTemplates || [];
+  for (const tpl of templates) {
+    const div = document.createElement("div");
+    div.className = "code-template";
+    div.innerHTML = `
+      <div class="tpl-name">${tpl.name}</div>
+      <div class="tpl-tech">${tpl.tech}</div>
+    `;
+    div.addEventListener("click", () => useTemplate(tpl));
+    els.codeTemplates.appendChild(div);
+  }
+}
+
+// Use a template - open builder with template prompt
+async function useTemplate(tpl) {
+  const url = (settings.codeAppUrl || "").trim();
+  if (!url) {
+    browser.runtime.openOptionsPage();
+    return;
+  }
+  // Encode the template prompt as a URL parameter for the builder to pick up
+  const prompt = encodeURIComponent(tpl.prompt || "");
+  const fullUrl = codeAppLaunchUrl() + (url.includes("#") ? "&" : "#") + "template=" + tpl.id + "&prompt=" + prompt;
+  trackRecentProject(fullUrl, tpl.name);
+  try { await browser.tabs.create({ url: fullUrl }); } catch (_) { window.open(fullUrl, "_blank", "noopener"); }
+}
+
+// Recent projects tracking
+const MAX_RECENT_PROJECTS = 10;
+function trackRecentProject(url, title) {
+  const projects = settings.codeProjects || [];
+  const existing = projects.findIndex((p) => p.url === url);
+  if (existing >= 0) projects.splice(existing, 1);
+  projects.unshift({ id: "p" + Date.now(), title: title || "Project", url, openedAt: Date.now() });
+  while (projects.length > MAX_RECENT_PROJECTS) projects.pop();
+  settings.codeProjects = projects;
+  setSettings({ codeProjects: projects });
+  renderRecentProjects();
+}
+
+function renderRecentProjects() {
+  if (!els.recentProjects) return;
+  const projects = settings.codeProjects || [];
+  els.recentProjects.innerHTML = "";
+  if (!projects.length) {
+    els.recentProjects.innerHTML = `<div class="code-section-empty">${t("code.noRecentProjects")}</div>`;
+    if (els.recentProjectsSection) els.recentProjectsSection.classList.add("hidden");
+    return;
+  }
+  if (els.recentProjectsSection) els.recentProjectsSection.classList.remove("hidden");
+  for (const p of projects.slice(0, 5)) {
+    const div = document.createElement("div");
+    div.className = "code-recent-item";
+    div.innerHTML = `
+      <span class="rp-icon">📁</span>
+      <div class="rp-info">
+        <div class="rp-title">${p.title}</div>
+        <div class="rp-time">${timeAgo(p.openedAt)}</div>
+      </div>
+      <button class="rp-open">${t("code.openInBuilder") || "Open"}</button>
+    `;
+    div.querySelector(".rp-open").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const fullUrl = codeAppLaunchUrl();
+      try { browser.tabs.create({ url: p.url || fullUrl }); } catch (_) { window.open(p.url || fullUrl, "_blank", "noopener"); }
+    });
+    div.addEventListener("click", () => {
+      try { browser.tabs.create({ url: p.url }); } catch (_) { window.open(p.url, "_blank", "noopener"); }
+    });
+    els.recentProjects.appendChild(div);
+  }
+}
+
+function clearRecentProjectsList() {
+  settings.codeProjects = [];
+  setSettings({ codeProjects: [] });
+  renderRecentProjects();
+}
+
+// Code Assistant - quick code generation
+let codeGenController = null;
+async function runCodeGen() {
+  const prompt = (els.codePrompt?.value || "").trim();
+  if (!prompt) return;
+  const connected = connectedProviders(settings).length > 0;
+  if (!connected) {
+    addMessage("error", t("err.noKeyModel"));
+    return;
+  }
+
+  const language = els.codeLanguage?.value || "";
+  const sysPrompt = buildCodeSystemPrompt(language);
+  const userPrompt = language ? `[${language}] ${prompt}` : prompt;
+
+  if (codeGenController) codeGenController.abort();
+  codeGenController = new AbortController();
+  els.codeGenerate.disabled = true;
+  els.codeGenerate.textContent = t("code.generating") || "Generating...";
+
+  // Switch to chat mode to show the result
+  setMode("chat");
+
+  // Add user message
+  addMessage("user", `[Code] ${prompt}`);
+  history.push({ role: "user", content: userPrompt });
+
+  try {
+    const sel = { providerId: settings.provider, modelId: modelFor(settings.provider, settings) };
+    const prov = makeProvider(settings, { thinking: settings.thinking });
+    const responseDiv = addMessage("assistant", "");
+    let fullText = "";
+
+    await runConversation({
+      provider: prov,
+      system: sysPrompt,
+      history,
+      tools: [],
+      onText: (delta) => {
+        fullText += delta;
+        responseDiv.innerHTML = renderMarkdown(fullText);
+        enhanceArtifacts(responseDiv);
+      },
+      signal: codeGenController.signal,
+    });
+
+    // Add compare bar
+    addCompareBar(responseDiv, sel);
+    transcript.push({ role: "assistant", text: fullText });
+    history.push({ role: "assistant", content: fullText });
+    await saveCurrent();
+  } catch (e) {
+    if (e.name === "AbortError") {
+      addMessage("error", t("msg.interrupted"));
+    } else {
+      addMessage("error", t("err.generic", { msg: e.message }));
+    }
+  } finally {
+    els.codeGenerate.disabled = false;
+    els.codeGenerate.textContent = t("code.generate") || "Generate";
+    codeGenController = null;
+    if (els.codePrompt) els.codePrompt.value = "";
+    updateEmptyState();
+  }
+}
+
+function buildCodeSystemPrompt(language) {
+  return `You are an expert software engineer and coding assistant. Your role is to help users write clean, efficient, and well-structured code.
+
+Guidelines:
+- Provide complete, working code examples
+- Include necessary imports and dependencies
+- Add brief inline comments for complex logic
+- Follow best practices and modern conventions
+- Consider error handling and edge cases
+- When asked for explanations, be clear and thorough
+
+${language ? `The user prefers ${language} solutions, but suggest alternatives if appropriate.` : ""}
+Always wrap code in appropriate markdown code blocks with the language tag.`;
+}
+
+// Code Snippets Library
+function renderCodeSnippets() {
+  if (!els.codeSnippets) return;
+  const snippets = settings.codeSnippets || [];
+  els.codeSnippets.innerHTML = "";
+  if (!snippets.length) {
+    els.codeSnippets.innerHTML = `<div class="code-section-empty">${t("code.noSnippets")}</div>`;
+    return;
+  }
+  for (const sn of snippets) {
+    const div = document.createElement("div");
+    div.className = "code-snippet-item";
+    const tags = (sn.tags || []).join(", ");
+    div.innerHTML = `
+      <span class="sn-lang">${sn.lang || "code"}</span>
+      <div class="sn-info">
+        <div class="sn-title">${sn.title}</div>
+        ${tags ? `<div class="sn-tags">${tags}</div>` : ""}
+      </div>
+      <div class="sn-actions">
+        <button class="sn-btn" data-action="copy">${t("code.copy") || "Copy"}</button>
+        <button class="sn-btn" data-action="delete">${t("code.delete") || "Delete"}</button>
+      </div>
+    `;
+    div.querySelector('[data-action="copy"]').addEventListener("click", (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(sn.code || "");
+      div.querySelector('[data-action="copy"]').textContent = "Copied!";
+      setTimeout(() => { div.querySelector('[data-action="copy"]').textContent = t("code.copy") || "Copy"; }, 1500);
+    });
+    div.querySelector('[data-action="delete"]').addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteSnippet(sn.id);
+    });
+    els.codeSnippets.appendChild(div);
+  }
+}
+
+function openSnippetModal(code = "", title = "", lang = "javascript") {
+  if (els.snippetModal) {
+    els.snippetModal.classList.remove("hidden");
+    if (els.snippetTitle) els.snippetTitle.value = title;
+    if (els.snippetLang) els.snippetLang.value = lang;
+    if (els.snippetTags) els.snippetTags.value = "";
+    if (els.snippetCode) els.snippetCode.value = code;
+  }
+}
+
+function closeSnippetModalFn() {
+  if (els.snippetModal) els.snippetModal.classList.add("hidden");
+}
+
+async function saveSnippetFn() {
+  const title = (els.snippetTitle?.value || "").trim() || "Untitled snippet";
+  const lang = els.snippetLang?.value || "javascript";
+  const tags = (els.snippetTags?.value || "").split(",").map((t) => t.trim()).filter(Boolean);
+  const code = els.snippetCode?.value || "";
+
+  if (!code) return;
+
+  const snippets = settings.codeSnippets || [];
+  const sn = { id: "sn" + Date.now(), title, lang, tags, code, createdAt: Date.now() };
+  snippets.unshift(sn);
+  settings.codeSnippets = snippets;
+  await setSettings({ codeSnippets: snippets });
+  closeSnippetModalFn();
+  renderCodeSnippets();
+}
+
+async function deleteSnippet(id) {
+  const snippets = (settings.codeSnippets || []).filter((s) => s.id !== id);
+  settings.codeSnippets = snippets;
+  await setSettings({ codeSnippets: snippets });
+  renderCodeSnippets();
+}
+
+// Initialize code workspace UI
+function initCodeWorkspace() {
+  renderCodeTemplates();
+  renderRecentProjects();
+  renderCodeSnippets();
+  updateCodeLauncher();
 }
 
 // ----- Page awareness -------------------------------------------------------
@@ -1377,6 +1645,13 @@ function wire() {
 
   els.rail.querySelectorAll(".railtab").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   els.openCodeApp.addEventListener("click", openCodeApp);
+  // Code workspace controls
+  if (els.codeGenerate) els.codeGenerate.addEventListener("click", runCodeGen);
+  if (els.addSnippet) els.addSnippet.addEventListener("click", () => openSnippetModal());
+  if (els.closeSnippetModal) els.closeSnippetModal.addEventListener("click", closeSnippetModalFn);
+  if (els.saveSnippet) els.saveSnippet.addEventListener("click", saveSnippetFn);
+  if (els.cancelSnippet) els.cancelSnippet.addEventListener("click", closeSnippetModalFn);
+  if (els.clearRecentProjects) els.clearRecentProjects.addEventListener("click", clearRecentProjectsList);
 
   // PDF workspace controls
   els.pdfLoad.addEventListener("click", () => els.pdfFile.click());
